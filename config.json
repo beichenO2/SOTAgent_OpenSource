@@ -320,16 +320,6 @@
       "restart_on_failure": false,
       "max_restarts": 0,
       "cron_schedule": "0 */4 * * *"
-    },
-    {
-      "id": "opensource-mirror-sync",
-      "name": "OpenSource Mirror Sync",
-      "command": "bash ~/Desktop/opensource/Polarisor/sanitize-template/sync-opensource.sh all",
-      "work_dir": "~/Polarisor",
-      "auto_start": false,
-      "restart_on_failure": false,
-      "max_restarts": 0,
-      "cron_schedule": "0 5 * * *"
     }
   ]
 }

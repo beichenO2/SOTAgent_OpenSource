@@ -1,231 +1,183 @@
-# SOTAgent — 跨设备智能体守护进程 + Web 控制台
+# SOTAgent
 
-**State-Of-The-Art Agent** — 保持技术为 SOTA 的守护进程，附带 Web 可视化仪表盘。
+> **Polarisor 生态的状态中枢（Single Source of Truth Agent）** — 在 Mac 本地多项目、多设备、多 Agent 并行开发时，统一回答「哪些服务在跑、端口谁占用、API 是否健康、SSoT 是否漂移」。
 
-## 核心功能
+Polarisor 有 20+ 微服务各自监听端口、各自维护 `polaris.json`，缺少一个可观测、可自愈的运行时根节点。SOTAgent 填补这一空白：它是 SSoT Dashboard 的数据后端，也是全生态服务发现、进程守护、Git 同步与 API 网关的统一入口。
 
-| 模块 | 职责 |
+**GitHub:** [beichenO2/SOTAgent](https://github.com/beichenO2/SOTAgent)
+
+---
+
+## 安装
+
+### Polarisor 生态（推荐）
+
+```bash
+git clone https://github.com/beichenO2/Polarisor.git
+cd Polarisor
+./install.sh infra    # 安装 SOTAgent 及基础设施依赖
+```
+
+### 独立安装
+
+```bash
+git clone https://github.com/beichenO2/SOTAgent.git
+cd SOTAgent
+npm install
+cd console && npm install && cd ..
+```
+
+**环境要求：** Node.js ≥ 22
+
+---
+
+## 设计思考
+
+### 为什么用 launchd + 原生进程，而不是 Docker？
+
+Polarisor 是本地优先的 macOS 开发环境。SOTAgent 直接 `spawn` 子进程并做 HTTP 健康探针，配合 launchd 常驻 3 个守护单元（sentinel / resource-monitor / web），内存占用远低于容器运行时，且与 macOS 原生工具链（`lsof`、launchd）无缝集成。
+
+### 为什么用按需拉取缓存，而不是后台定时轮询？
+
+旧设计为每个数据源维护 5 分钟 `setInterval`，无人访问也持续打上游。现改为 **前端 10s 轮询 → 后端 60s 冷却 → 每 5 次成功拉取写一次磁盘**：有人看才拉、重启后磁盘缓存秒开、后台零负载。详见 [`docs/cache-design.md`](docs/cache-design.md)。
+
+### 为什么用 2 小时静默重启窗口，而不是代码变更即重启？
+
+开发期文件频繁保存。`notify-update` 标记待重启后，仅当 **连续 2 小时无新改动** 才触发重启（`silent_restart_window_sec: 7200`），避免打断正在进行的 Agent 会话。
+
+### 为什么用 Tailscale PeerSync，而不是独立同步服务？
+
+MacBook Pro 与 Mac Studio 已通过 Tailscale VPN 互联。PeerSync 每 **30s** 心跳交换 Git 状态，远端领先且本地 clean 时自动 pull，文件无重叠时自动 commit+push——复用现有网络，无需额外部署同步中间件。
+
+---
+
+## 核心亮点
+
+| 维度 | 数据 |
 |------|------|
-| **SOTA 技术同步** | 自动/建议式同步 Skills、架构、工作流到所有订阅项目 |
-| **资源调度** | 重任务"偷时间"运行，共享服务分时复用 |
-| **Agent 通信** | 基于文件信箱的跨设备异步通信 |
-| **GitHub 同步巡检** | 定期扫描所有项目的 Git 状态，自动 pull/push |
-| **Web 控制台** | Vue 3 仪表盘 — 仓库状态、端口注册、LLM 运维助手 |
-| **LLM Agent** | 按需启动的智能运维助手，通过 PolarPrivate 代理调用 LLM |
+| **托管服务** | 10 个内建服务（AutoOffice、PolarClaw、KnowLever RAG/Wiki、PolarMemory、PolarPilot 等） |
+| **端口治理** | 27 个预注册端口 + 心跳自愈（released/stale → active 自动复活） |
+| **API 网关** | 8 条 `/gw/*` 路由（PolarPrivate、**DiGist :3800**、AutoOffice、KnowLever 等）— 详见 [`docs/gateway-routes.md`](docs/gateway-routes.md) |
+| **能力注册** | 11 个 HTTP capability，一行 `call()` 跨服务调用 |
+| **SSoT 监控** | 实时监听 3 类文件（`polaris.json` / `PolarSoul.md` / `capabilities.json`），500ms 防抖 + 60s 兜底轮询 |
+| **健康巡检** | 进程探针每 **120s**；Sentinel 主循环每 **30s**；PeerSync 心跳每 **30s** |
+| **控制台** | Vue 3 仪表盘 **11 个功能页**（端口、服务、架构拓扑、Funnel、成本、LLM 限速等） |
+| **自动化测试** | **26** 个测试文件，覆盖 R1–R5 五大需求域 |
+| **下游依赖** | **8** 个项目直接依赖 SOTAgent（PolarCopilot、PolarClaw、KnowLever、AutoOffice 等） |
 
-> **注**: Web 控制台原为独立项目 SumSync，已于 2026-04-13 合并入 SOTAgent。
+---
+
+## 页面预览
+
+![SSoT 状态总览](screenshots/sotagent-ssot.png)
+
+> 控制台默认入口：`http://127.0.0.1:4880` — 端口注册、服务管理、架构拓扑 D3 力导向图、Funnel 路由、LLM 成本透明等。
+
+---
 
 ## 架构
 
-采用**混合模式**：Shell 哨兵 + 按需 Node.js + Hono Web API。
+```
+SOTAgent/
+├── src/                    # 后端核心（TypeScript + Hono）
+│   ├── web.ts              # HTTP API 主入口（4800）
+│   ├── main.ts             # Sentinel 守护主循环
+│   ├── db.ts               # SQLite 持久化（端口/服务/任务）
+│   ├── gateway.ts          # /gw/* API 网关
+│   ├── peer-sync.ts        # 跨设备 Git 同步（Tailscale）
+│   ├── ssot-watcher.ts     # SSoT 实时变更检测
+│   ├── scheduler.ts        # 重任务资源调度
+│   ├── api-cache.ts        # 按需拉取 + 磁盘缓存
+│   ├── knowlever-monitor.ts
+│   ├── digist-monitor.ts
+│   └── facade/             # PolarPort / PolarProcess 桥接
+├── console/                # Vue 3 控制台（4880）
+│   └── src/views/          # 11 个功能页
+├── config.json             # 端口表、内建服务、网关路由
+├── polaris.json            # SSoT 需求定义（R1–R5，33 项 feature）
+├── capabilities.json       # 能力注册表
+├── contracts/              # HTTP / PeerSync / Inbox JSON Schema
+├── tests/                  # R1–R5 分域测试（26 文件）
+├── bin/                    # launchd 安装 + sotctl CLI
+├── start.sh                # 开发环境一键启动
+├── docs/                   # 设计文档
+└── screenshots/            # README 截图
+```
 
-- **哨兵** (sentinel.sh): fswatch 监听 inbox + 定时轮询兜底，launchd 管理
-- **资源监控** (resource-monitor.sh): 每 60 秒采集 CPU/MEM/GPU，跑完就退
-- **Web API** (web.ts): Hono HTTP 服务，为前端控制台提供数据
-- **Node.js 核心**: CLI 命令 + 守护主循环
+**运行时数据流：**
+
+```
+各微服务 ──heartbeat──▶ SOTAgent API (:4800)
+                              │
+         ┌────────────────────┼────────────────────┐
+         ▼                    ▼                    ▼
+    SQLite DB          Vue Console (:4880)    SSoT Watcher
+    (端口/进程)         (11 功能页)            (polaris.json 变更)
+         │                    │                    │
+         └─────────── PeerSync (Tailscale 30s) ────┘
+```
+
+---
 
 ## 快速开始
 
+### 开发环境
+
 ```bash
-# 开发模式 — 一键启动 Web API + 前端控制台
-cd ~/Polarisor/SOTAgent
+# 一键启动 API + 控制台
 ./start.sh
 
 # 或分别启动
-npm run web                        # Web API: http://127.0.0.1:4800
-cd console && npm run dev          # 控制台: http://localhost:4880
+npm run web                        # API:  http://127.0.0.1:4800
+cd console && npm run dev          # 控制台: http://127.0.0.1:4880
 ```
 
-## 安装（生产环境 — launchd 常驻）
+### 生产环境（launchd 常驻）
 
 ```bash
-cd ~/Polarisor/SOTAgent
-bash bin/install.sh
+bash bin/install.sh                # 注册 sentinel + resource-monitor + web
+bash bin/install.sh uninstall      # 卸载
 ```
 
-每台设备运行一次即可。launchd 管理三个服务：
-- `com.sotagent.sentinel` — 哨兵主循环
-- `com.sotagent.resource-monitor` — 资源监控采样
-- `com.sotagent.web` — Web API 服务器
-
-## CLI 命令
+### 常用 CLI
 
 ```bash
-npm run status           # 查看系统状态
-npm run web              # 启动 Web API 服务器
-npm run process-inbox    # 手动处理 inbox
-npm run schedule         # 手动运行调度
-npm run monitor          # 采样进程资源画像
+npm run status           # 系统状态摘要
+npm run schedule         # 手动运行资源调度
+npm run process-inbox    # 处理 Agent 信箱
+npm test                 # 运行 26 个自动化测试
 ```
 
-### Agent 通信
+### 关键 API
 
-参见 `skills/request-sotagent/SKILL.md`
-
-## 端口分配
-
-| 端口 | 服务 | 说明 |
-|------|------|------|
-| 4880 | SOTAgent Console | Web 前端控制台 |
-| 4801 | SOTAgent Web API | Hono HTTP API |
-
-## 技术栈
-
-| 后端 | 前端 |
+| 端点 | 说明 |
 |------|------|
-| Node.js + TypeScript | Vue 3 + TypeScript |
-| Hono (HTTP API) | Vite + Tailwind CSS 4 |
-| better-sqlite3 (SQLite) | Pinia + VueUse |
-| tsx 运行时 | Vue Router 4 |
+| `GET /api/status` | 设备/资源/任务状态摘要 |
+| `GET /api/ports` | 端口注册列表 |
+| `GET /api/services` | 托管服务列表 |
+| `GET /api/architecture` | 生态拓扑（nodes + edges） |
+| `POST /api/services/:id/notify-update` | 标记静默重启 |
+| `POST /api/lobster/events` | 龙虾事件总线写入 |
 
-## 目录结构
+---
 
-```
-SOTAgent/
-├── bin/             Shell 脚本 + launchd plist + 安装脚本
-├── src/             TypeScript 核心逻辑
-│   ├── cli.ts         CLI 命令入口
-│   ├── main.ts        守护进程主循环
-│   ├── db.ts          SQLite 数据层
-│   ├── communicator.ts  Agent 通信管理器
-│   ├── scheduler.ts   资源调度器
-│   ├── sync-engine.ts 技术同步引擎
-│   ├── profiler.ts    资源画像
-│   ├── web.ts         Hono Web API 服务器
-│   ├── web-scanner.ts 实时 Git 扫描器
-│   ├── web-agent.ts   LLM 运维助手
-│   └── llm.ts         LLM 调用层 (via PolarPrivate)
-├── console/         Vue 3 前端控制台
-│   └── src/
-│       ├── views/     页面视图
-│       ├── components/ 布局和通用组件
-│       ├── stores/    Pinia 状态管理
-│       └── router/    Vue Router 配置
-├── data/            SQLite 数据库（本地，不同步）
-├── inbox/           Agent 写入请求（按设备分目录）
-├── outbox/          SOTAgent 输出（按项目分目录）
-├── pending-sync/    待同步变更暂存
-├── processed/       已处理消息归档
-├── profiles/        各设备硬件描述
-├── skills/          给其他 Agent 用的通信 Skill
-├── scripts/         服务注册等运维脚本
-├── you/             跨设备协调工作区（每台设备一个 .md 状态文件）
-└── start.sh         开发环境一键启动
-```
+## 生态依赖
 
-## 统一服务管理 (ProcessManager)
+| 项目 | 角色 | 必须 |
+|------|------|:----:|
+| [PolarPort](https://github.com/beichenO2/PolarPort) | 端口分配 SSOT（11050），SOTAgent facade 透明转发 | 推荐 |
+| [PolarProcess](https://github.com/beichenO2/PolarProcess) | 进程生命周期管理（11055） | 推荐 |
+| [PolarPrivate](https://github.com/beichenO2/PolarPrivate) | LLM 运维代理 + 限速/成本数据 | 可选 |
+| [Agent_core](https://github.com/beichenO2/Agent_core) | 设计规则、SSoT 审计脚本、通信协议 | 推荐 |
+| [PolarCopilot](https://github.com/beichenO2/PolarCopilot) | Hub Agent，转发 checkup-event | 可选 |
+| [PolarClaw](https://github.com/beichenO2/PolarClaw) | 消费 lobster 事件总线 | 可选 |
+| [KnowLever](https://github.com/beichenO2/KnowLever) | 知识库 RAG + Wiki（监控桥接） | 可选 |
+| [digist](https://github.com/beichenO2/digist) | 摘要服务（监控桥接 + 定时 digest） | 可选 |
 
-SOTAgent 是所有自定义服务的统一管理器。项目只负责写代码，SOTAgent 负责运行。
+> SOTAgent 本身是依赖树的根节点——无上游硬依赖，但被生态内 8 个项目直接引用。
 
-### 当前管理的服务
+---
 
-| 服务 | 端口 | 类型 | auto_start |
-|------|------|------|-----------|
-| PolarPrivate Backend | 12790 | 常驻 | ✓ |
-| PolarPrivate Frontend | 5170 | 常驻 | ✓ |
-| AI Daily Digest | 8785 | 常驻 | ✓ |
-| Claude Code Visualizer | 19120 | 常驻 | ✓ |
-| GSD2 Hub | 8765 | 常驻 | ✓ |
-| Tailscale Funnel Monitor | - | 常驻 | ✓ |
-| Vault Backup | - | cron (每小时) | - |
-| Digist Scrape | - | cron (7次/天) | - |
-| Digist Summarize | - | cron (7次/天) | - |
+## License
 
-### 服务管理 API
-
-```bash
-# 查看所有服务状态
-curl http://127.0.0.1:4800/api/services
-
-# 启动/停止/重启
-curl -X POST http://127.0.0.1:4800/api/services/{id}/start
-curl -X POST http://127.0.0.1:4800/api/services/{id}/stop
-curl -X POST http://127.0.0.1:4800/api/services/{id}/restart
-
-# 代码更新后通知重启
-curl -X POST http://127.0.0.1:4800/api/services/{id}/notify-update \
-  -H "Content-Type: application/json" \
-  -d '{"strategy": "restart"}'
-
-# 端口冲突检测
-curl http://127.0.0.1:4800/api/services/port-conflicts
-```
-
-### 代码更新后的重启规范
-
-项目代码更新后，需要通知 SOTAgent 重启对应服务。
-
-#### 后端服务（Python / Node.js）
-
-```bash
-# 通用方式：直接调 restart API
-curl -X POST http://127.0.0.1:4800/api/services/privportal-backend/notify-update \
-  -H "Content-Type: application/json" \
-  -d '{"strategy": "restart"}'
-```
-
-#### 前端服务（Vite）
-
-Vite 的 HMR 能处理大部分改动，但以下情况需要完整重启：
-- `vite.config.ts` 变更
-- `package.json` 依赖变更（需先 `npm install`）
-- `.env` 文件变更
-- Tailwind 配置变更
-
-```bash
-# Vite 完整重启（先停后启，确保端口释放）
-curl -X POST http://127.0.0.1:4800/api/services/privportal-frontend/restart
-```
-
-> **注意**：Vite dev server 的 `--strictPort` 参数确保它不会自动换端口。
-> SOTAgent 的端口冲突检测会在启动前清理残留进程。
-
-#### 注册新服务
-
-```bash
-curl -X POST http://127.0.0.1:4800/api/services \
-  -H "Content-Type: application/json" \
-  -d '{
-    "id": "my-service",
-    "name": "My Service",
-    "command": "/path/to/binary start",
-    "work_dir": "~/path/to/project",
-    "port": 3000,
-    "device_id": "Mac-Studio",
-    "auto_start": true,
-    "restart_on_failure": true,
-    "max_restarts": 5,
-    "health_check_url": "http://127.0.0.1:3000/health"
-  }'
-```
-
-#### 注册 cron 定时任务
-
-注册后在数据库中设置 cron_schedule：
-
-```sql
--- cron 格式：minute hour day month weekday
--- 支持: *, 数字, 逗号分隔
-sqlite3 ~/Polarisor/SOTAgent/data/resources.sqlite \
-  "UPDATE shared_services SET cron_schedule = '0 * * * *' WHERE id = 'my-cron-job';"
-```
-
-### 端口冲突处理
-
-启动服务前自动检测端口占用：
-- **自家残留进程**（command 匹配注册的 work_dir）→ 自动 kill
-- **第三方进程** → 报错，需手动处理
-
-### launchd 架构
-
-```
-macOS launchd
-  └── com.sotagent.web (KeepAlive=true, RunAtLoad=true)
-        └── SOTAgent Web API (:4800)
-              ├── ProcessManager → 常驻服务 (spawn + 健康检查 + 自动重启)
-              ├── CronScheduler  → 定时任务 (每分钟检查 cron 表达式)
-              └── PeerSync       → 跨设备感知
-```
-
-所有其他服务的 launchd plist 已移除，统一由 SOTAgent 管理。
-备份位置：`~/Desktop/ClawBin/2026-04-14/launchd-backup/`
+MIT

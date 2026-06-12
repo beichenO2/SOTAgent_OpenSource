@@ -165,18 +165,18 @@ register '{
   "health_check_url": "http://127.0.0.1:8500/docs"
 }'
 
-# ─── DiGist API (standalone HTTP, port 3800, SOTAgent config.json SSOT) ─
+# ─── DiGist API (standalone HTTP, port 4880, PolarPort SSOT) ─
 register '{
   "id": "digist",
   "name": "DiGist API",
   "command": "npm run digist-api",
   "work_dir": "~/Polarisor/digist",
-  "port": 3800,
+  "port": 4880,
   "device_id": "'"$DEVICE"'",
   "auto_start": true,
   "restart_on_failure": true,
   "max_restarts": 10,
-  "health_check_url": "http://127.0.0.1:3800/health"
+  "health_check_url": "http://127.0.0.1:4880/health"
 }'
 
 # ─── DiGist Engine (scheduler + evolution + reports) ─
