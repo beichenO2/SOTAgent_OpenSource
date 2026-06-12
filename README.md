@@ -69,9 +69,23 @@ MacBook Pro 与 Mac Studio 已通过 Tailscale VPN 互联。PeerSync 每 **30s**
 
 ## 页面预览
 
-![SSoT 状态总览](screenshots/sotagent-ssot.png)
+> 截图位于 `screenshots/`，均为控制台实拍。默认入口：`http://127.0.0.1:4880`
 
-> 控制台默认入口：`http://127.0.0.1:4880` — 端口注册、服务管理、架构拓扑 D3 力导向图、Funnel 路由、LLM 成本透明等。
+![端口注册 — 生态服务端口分配](screenshots/sa-01-ports.png)
+
+![Git 仓库 — 跨项目同步状态](screenshots/sa-02-git-repos.png)
+
+![技术资产 — Skill / 配置注册表](screenshots/sa-03-tech-assets.png)
+
+![KnowLever — 知识流水线监控](screenshots/sa-04-knowlever.png)
+
+![DiGist — 兴趣与信源管理](screenshots/sa-05-digist.png)
+
+![服务管理 — 进程生命周期与健康监控](screenshots/sa-06-services.png)
+
+![资源画像 — CPU / 内存趋势与任务队列](screenshots/sa-07-resources.png)
+
+![架构总览 — 生态拓扑与接口变更预警](screenshots/sa-08-architecture.png)
 
 ---
 
