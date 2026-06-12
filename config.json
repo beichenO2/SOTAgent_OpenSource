@@ -60,7 +60,7 @@
     "macbook-pro": {
       "display_name": "MacBook Pro",
       "role": "dev",
-      "tailscale_ip": "100.103.19.43",
+      "tailscale_ip": "<tailscale-ip>",
       "ssh_user": "macbook",
       "capabilities": [
         "dev",
@@ -71,7 +71,7 @@
     "Mac-Studio": {
       "display_name": "Mac Studio",
       "role": "compute",
-      "tailscale_ip": "100.117.92.110",
+      "tailscale_ip": "<tailscale-ip>",
       "capabilities": [
         "compute",
         "gpu",
@@ -320,6 +320,16 @@
       "restart_on_failure": false,
       "max_restarts": 0,
       "cron_schedule": "0 */4 * * *"
+    },
+    {
+      "id": "opensource-mirror-sync",
+      "name": "OpenSource Mirror Sync",
+      "command": "bash ~/Desktop/opensource/Polarisor/sanitize-template/sync-opensource.sh all",
+      "work_dir": "~/Polarisor",
+      "auto_start": false,
+      "restart_on_failure": false,
+      "max_restarts": 0,
+      "cron_schedule": "0 5 * * *"
     }
   ]
 }
