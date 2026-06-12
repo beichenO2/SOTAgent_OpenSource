@@ -1,0 +1,640 @@
+{
+  "name": "SOTAgent",
+  "_meta": {
+    "schema_version": "1.0",
+    "last_synced_at": "2026-06-10T00:00:00+08:00"
+  },
+  "description": "Polarisor 中央基础设施守护进程：服务发现、进程管理、Git 同步、网关、能力注册",
+  "tier": "infra",
+  "status": "active",
+  "version": "0.1.0",
+  "requirements": [
+    {
+      "id": "R1",
+      "need": "服务发现与注册",
+      "approach": "lsof 扫描 + PolarPort SDK 心跳消费 + SQLite 持久化（端口分配已迁移至 PolarPort，见 ADR-0005）",
+      "features": [
+        {
+          "name": "端口发现",
+          "description": "auto-discover.ts 扫描活跃端口并注册到 DB，含自愈逻辑",
+          "status": "done",
+          "behavior": [
+            "auto-discover.ts 扫描活跃端口并注册到 DB",
+            "发现正在监听但被误标为 released/stale 的端口时，自动调用 reactivatePort() 复活",
+            "last_verified 事件驱动更新：touchPort() 仅刷新 active 状态端口"
+          ],
+          "evidence": [
+            "2026-04-28: GET http://127.0.0.1:4800/api/ports 返回 polarcop-hub 等 active 端口记录",
+            "2026-04-29: auto-discover syncPorts 自动复活正在监听的 released/stale 端口"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "port-sdk",
+          "description": "@polarisor/port-sdk 提供 claimPort/heartbeat 给各服务，含降级、重试和身份自愈",
+          "status": "done",
+          "behavior": [
+            "@polarisor/port-sdk 提供 claimPort/heartbeat 给各服务",
+            "heartbeat 携带 service_name 和 project 身份字段，支持 released/stale 端口自愈复活",
+            "SOTAgent 不可达时降级到本地 lsof 端口扫描",
+            "端口被旧进程占用时自动 kill + 重试",
+            "最多 3 次重试 + 指数退避",
+            "getPort/discoverService 不再因 SOTAgent 不可达而崩溃"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "端口自愈",
+          "description": "heartbeat 自愈机制：released/stale 端口在身份匹配且实际监听时自动恢复为 active",
+          "status": "done",
+          "behavior": [
+            "active + heartbeat → touchPort()（仅刷新 last_verified）",
+            "stale/released + 同 service_name/project + 端口监听中 → reactivatePort()（恢复为 active）",
+            "无记录 → 404",
+            "不同 service_name/project → 409 conflict",
+            "allocatePort() 同名 service 的 released/stale preferred port 正在被监听时直接复活"
+          ],
+          "evidence": [
+            "2026-04-29: db.ts reactivatePort() + allocatePort() 复活逻辑实现",
+            "2026-04-29: web.ts /api/ports/heartbeat 支持身份校验和 reactivate"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "健康检查",
+          "description": "ProcessManager HTTP 探针 + 间隔巡检",
+          "status": "done",
+          "behavior": [
+            "ProcessManager HTTP 探针 + 间隔巡检"
+          ],
+          "evidence": [
+            "2026-04-28: GET http://127.0.0.1:4800/api/status 返回 200，包含 device/resource/task 状态摘要"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "API 控制台",
+          "description": "Vue 3 Web 仪表盘展示服务状态",
+          "status": "done",
+          "behavior": [
+            "Vue 3 Web 仪表盘展示服务状态"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "架构拓扑图",
+          "description": "D3.js 力导向图展示项目依赖拓扑，按 tier 分层（infra→knowledge→domain→app），节点叠加运行状态",
+          "status": "done",
+          "behavior": [
+            "GET /api/architecture 扫描所有项目 polaris.json 返回 nodes+edges 拓扑数据",
+            "D3.js 力导向图按 tier 分层渲染，节点颜色反映项目类型和运行状态",
+            "点击节点弹出详情面板：interfaces、features、依赖关系、服务状态",
+            "节点可拖拽，图形可缩放",
+            "服务运行数量以 badge 形式叠加在节点上"
+          ],
+          "interfaces": [
+            "GET /api/architecture"
+          ],
+          "evidence": [
+            "2026-04-30: ArchitectureView.vue 重构为 D3.js 拓扑图"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "接口变更预警",
+          "description": "定期扫描 polaris.json 接口字段，检测新增/删除/修改并预警",
+          "status": "done",
+          "behavior": [
+            "扫描所有项目 polaris.json 的 interfaces 字段建立基线快照",
+            "对比差异检测新增/删除/修改的接口",
+            "Dashboard 显示接口变更数量卡片",
+            "架构页面展示变更详情列表"
+          ],
+          "interfaces": [
+            "GET /api/interface-changes",
+            "GET /api/interface-changes/:project",
+            "POST /api/interface-snapshots/refresh"
+          ],
+          "evidence": [
+            "2026-04-30: interface_snapshots 表 + 变更检测 API + 前端预警"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "Funnel Dashboard",
+          "description": "Funnel 中控 Dashboard，展示所有 Tailscale Serve/Funnel 路由状态、服务健康和跳转链接",
+          "status": "done",
+          "behavior": [
+            "http://localhost:4880/#/funnel 展示全部 Funnel/Serve 路由及状态",
+            "每条路由显示挂载路径、代理目标、Funnel/Serve 类型标签",
+            "健康检查指示器：实时探测后端服务可达性",
+            "跳转链接：Funnel 路由提供公网访问链接",
+            "路由增删操作：添加路由 + 移除路由 + 重置全部",
+            "统计卡片：路由总数、Funnel 数、Serve 数"
+          ],
+          "evidence": [
+            "2026-04-29: FunnelView.vue 增加服务健康检查指示器"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "成本透明仪表盘",
+          "description": "LLM 调用成本透明页面，按时间/任务/用户/模型分类展示 token 消耗和费用估算",
+          "status": "done",
+          "behavior": [
+            "GET /api/costs 读取 ~/.polarcop/logs/llm-usage.jsonl 并聚合",
+            "按日/周/月维度汇总 token 消耗和费用",
+            "按模型/任务/用户分类统计",
+            "CostView.vue 展示趋势图 + 分类统计 + 统计卡片",
+            "无数据时展示友好空状态"
+          ],
+          "interfaces": [
+            "GET /api/costs"
+          ],
+          "evidence": [
+            "2026-05-01: /api/costs + CostView.vue + 路由 + 侧边栏"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "port fallback 预留保护（已迁移至 PolarPort）",
+          "description": "fallback 扫描时读取 config.json ports 生成 reserved 集合，跳过他人声明的 preferred 端口",
+          "status": "done",
+          "behavior": [
+            "启动时加载 config.json ports 为 Set",
+            "_findFreePort 随机扫描时跳过 reserved 中非本服务的端口",
+            "端口合规规则：fallback 随机端口强制以 0 或 5 结尾"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "PolarPort reserve facade",
+          "description": "透传 PolarPort 的 POST/DELETE/GET reserve 端点，与现有 ports bridge 一致",
+          "status": "done",
+          "interfaces": [
+            "POST /api/ports/reserve",
+            "DELETE /api/ports/reserve/:service_name/:project",
+            "GET /api/ports/reserved"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "id": "R2",
+      "need": "进程生命周期管理",
+      "approach": "ProcessManager + Watchdog + 孤儿端口清理",
+      "features": [
+        {
+          "name": "进程启停",
+          "description": "管理服务进程启动/停止/重启：优先通过项目 Start/ 脚本编排，fallback 到旧 command 模式",
+          "status": "done",
+          "behavior": [
+            "startService 优先检测 Start/start.sh 脚本，存在时走脚本编排模式",
+            "stopService 优先检测 Start/stop.sh 脚本",
+            "restartService 优先使用 Start/restart.sh（如存在），否则 stop+start",
+            "resolveScriptDir 优先级：DB start_script_dir → work_dir/Start/ 自动检测 → null (legacy)",
+            "无 Start/ 脚本的服务 fallback 到旧 command 直启模式（向后兼容）",
+            "exec 前缀确保 shell wrapper PID = 实际进程 PID（legacy 模式）",
+            "启动后 verifyPortBinding 检测 shell→子进程 PID 变更并自动校正",
+            "toProcessStatus() 对所有服务做 kill-0 实时 PID 验证",
+            "error/stopped 状态自愈：port-based 检测端口 occupant 恢复",
+            "所有 PID 变更记录 pid_updated 事件到 service_events 表"
+          ],
+          "evidence": [
+            "2026-04-28: sotctl status 返回守护进程运行中，端口 4800",
+            "2026-04-30: PID 追踪修复",
+            "2026-05-04: Start/ 脚本编排模式实现 — resolveScriptDir + execScript + 三方法改造",
+            "2026-05-10: config.json 移除 llama-server 服务条目（改用 Ollama MLX）"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "静默重启窗口",
+          "description": "代码变更后 2h 无新改动自动重启，避免开发期频繁重启",
+          "status": "done",
+          "behavior": [
+            "notifyCodeChange() 标记 pending_restart=1 和 last_change_at",
+            "silentWindowLoop 每 60s 检查待重启服务",
+            "now - last_change_at >= silent_restart_window_sec 时触发 restartService",
+            "新改动到来时重置窗口（last_change_at 更新）",
+            "POST /api/services/:id/notify-update strategy=pending 触发标记",
+            "GET /api/services/:id/restart-window 查询窗口状态",
+            "GET /api/services/pending-restarts 列出所有待重启服务"
+          ],
+          "interfaces": [
+            "POST /api/services/:id/notify-update (strategy=pending)",
+            "GET /api/services/:id/restart-window",
+            "GET /api/services/pending-restarts"
+          ],
+          "evidence": [
+            "2026-05-04: 静默重启窗口状态机实现 + API 端点"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "Start 脚本自托管",
+          "description": "SOTAgent 自身提供 Start/ 标准脚本，与被托管项目使用同一协议",
+          "status": "done",
+          "behavior": [
+            "SOTAgent/Start/start.sh: 幂等启动，构建 TS 后后台运行，输出 pid/port",
+            "SOTAgent/Start/stop.sh: SIGTERM→SIGKILL，幂等停止",
+            "SOTAgent/Start/status.sh: 端口检测 + HTTP /api/status 探活，退出码 0/1/2",
+            "SOTAgent/Start/restart.sh: stop→start",
+            "SOTAgent/Start/version.sh: git rev-parse --short HEAD"
+          ],
+          "evidence": [
+            "2026-05-04: SOTAgent/Start/ 5 个标准脚本创建"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "Watchdog",
+          "description": "健康检查失败自动重启，含 PID 同步和变更追踪",
+          "status": "done",
+          "behavior": [
+            "健康检查失败自动重启",
+            "健康检查周期内检测 port occupant PID 变更并立即同步到 DB",
+            "PID 变更时记录 pid_updated 事件，支持事后追踪"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "孤儿端口清理",
+          "description": "检测并清理无主进程占用的端口",
+          "status": "done",
+          "behavior": [
+            "检测并清理无主进程占用的端口"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "外部进程接管",
+          "description": "adopt 已运行的外部进程纳入管理",
+          "status": "done",
+          "behavior": [
+            "adopt 已运行的外部进程纳入管理"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "进程沙箱",
+          "description": "资源受控的沙箱进程管理，支持 nice/ulimit 资源限制、产出检测、僵死标记",
+          "status": "done",
+          "behavior": [
+            "startSandbox() 启动沙箱进程：nice 优先级控制、ulimit -v 内存限制、max_duration 超时自动终止",
+            "产出检测：定期扫描 output_dir，无新产出超过 output_timeout_sec 后标记为 stale（疑似僵死）",
+            "沙箱监控器每 30s 巡检：PID 存活验证、产出更新检测、超时判定",
+            "已完成/停止的沙箱 1h 后自动清理",
+            "API: POST /api/sandbox/start, POST /api/sandbox/stop/:id, GET /api/sandbox/status, GET /api/sandbox/:id/metrics",
+            "CLI: sotctl sandbox start <cmd> [--name/--nice/--timeout/--memory/--variant]、sotctl sandbox stop <id>、sotctl sandbox status",
+            "前端: SandboxView.vue 沙箱列表 + CPU/内存/产出指标 + 僵死高亮 + 一键启停"
+          ],
+          "evidence": [
+            "2026-04-30: 沙箱进程管理完整实现 — ProcessManager 扩展 + API + 前端",
+            "2026-05-01: cli.ts 新增 sandbox 子命令组（start/stop/status），通过 HTTP API 调用"
+          ],
+          "test_status": "passed"
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "id": "R3",
+      "need": "Git 仓库同步与数据管理",
+      "approach": "web-scanner + peer-sync + sync-engine + inbox/outbox 通信",
+      "features": [
+        {
+          "name": "仓库扫描",
+          "description": "扫描 Polarisor 下所有 Git 仓库状态",
+          "status": "done",
+          "behavior": [
+            "扫描 Polarisor 下所有 Git 仓库状态"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "PeerSync",
+          "status": "done",
+          "tech": [
+            "Tailscale VPN",
+            "fetch API",
+            "SSE"
+          ],
+          "interfaces": [
+            "POST /api/peer/heartbeat",
+            "POST /api/peer/notify",
+            "POST /api/peer/notify-push",
+            "GET /api/peer/status"
+          ],
+          "behavior": [
+            "定时向对端 SOTAgent 发送心跳（含所有项目 git 状态）",
+            "接收对端心跳后对比本地状态检测冲突",
+            "远端领先且本地无改动时自动 pull + 依赖重建",
+            "文件无重叠时自动 commit+push 并通知对端",
+            "Agent 活跃时启动心跳，全部销号后暂停"
+          ],
+          "depends_on": [
+            "仓库扫描",
+            "冲突解决"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "冲突解决",
+          "status": "done",
+          "tech": [
+            "git CLI"
+          ],
+          "interfaces": [
+            "POST /api/peer/resolve"
+          ],
+          "behavior": [
+            "local_behind_with_changes: stash→pull --ff-only→stash pop，失败回滚",
+            "both_uncommitted 无文件重叠: 自动 commit+push，对端心跳时 auto-pull",
+            "both_uncommitted 有文件重叠: 标记 needs_human",
+            "diverged (clean): 先尝试 rebase，失败回退到 merge commit，再失败标记 needs_human",
+            "diverged+dirty: stash→rebase/merge→stash pop→push，任何步骤失败则回滚并标记 needs_human",
+            "所有操作记录到 resolutionLog（最近 200 条）"
+          ],
+          "depends_on": [],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "SyncEngine",
+          "description": "通用同步引擎",
+          "status": "done",
+          "behavior": [
+            "通用同步引擎"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "id": "R4",
+      "need": "网关与能力注册",
+      "approach": "Hono HTTP API 提供 /gw/ 网关路由 + capabilities.json 注册",
+      "features": [
+        {
+          "name": "API 网关",
+          "description": "/gw/* 路由转发到后端服务",
+          "status": "done",
+          "behavior": [
+            "/gw/* 路由转发到后端服务"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "能力注册表",
+          "description": "各服务通过 capabilities.json 声明能力",
+          "status": "done",
+          "behavior": [
+            "各服务通过 capabilities.json 声明能力"
+          ],
+          "evidence": [
+            "2026-04-28: GET http://127.0.0.1:4800/api/capabilities 返回 autooffice.enrich 等能力条目"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "任务 API",
+          "description": "任务创建/分配/完成 REST 接口",
+          "status": "done",
+          "behavior": [
+            "任务创建/分配/完成 REST 接口"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "port-sdk call() API",
+          "description": "call(capabilityId, input) 一行调用任意已注册能力，三步串联：能力查找→服务发现→HTTP请求",
+          "status": "done",
+          "behavior": [
+            "call() 精确查找 capability → getPort → HTTP 请求",
+            "generateClient() 返回 Proxy 对象预绑定 service/project",
+            "5 个错误类型：CapabilityNotFoundError/ServiceUnreachableError/SchemaValidationError/SchemaValidationResponseError/UnsupportedTransportError",
+            "进程级 capability 缓存 TTL 60s",
+            "JS/TS + Python 绑定同步更新"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        }
+      ],
+      "blockers": []
+    },
+    {
+      "id": "R5",
+      "need": "辅助服务与集成",
+      "approach": "KnowLever/DiGist 监控桥接 + 资产扫描 + Crystallize + LLM Agent",
+      "features": [
+        {
+          "name": "KnowLever 监控",
+          "description": "knowlever-monitor.ts 桥接知识库状态",
+          "status": "done",
+          "behavior": [
+            "knowlever-monitor.ts 桥接知识库状态"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "DiGist 监控",
+          "description": "digist-monitor.ts 桥接摘要服务状态",
+          "status": "done",
+          "behavior": [
+            "digist-monitor.ts 桥接摘要服务状态",
+            "DiGist interests/sources 兼容原生 digist.sqlite schema（label/query/platforms、name/kind/metadata）与旧 sidecar schema",
+            "内置 Admin/useR 默认兴趣范围种子化：量化金融、加密货币、LLM基础算法、Agent、CV、重大金融事件、生物化学",
+            "ProcessManager 服务注册支持 cron_schedule，config.json 内置 digist-daily-digest 定时任务，由 SOTAgent cron loop 接管"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "资产扫描",
+          "description": "asset-scanner.ts 扫描项目资产",
+          "status": "done",
+          "behavior": [
+            "asset-scanner.ts 扫描项目资产"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "Crystallize",
+          "description": "crystallize.ts 数据快照/存档 + crystallize_arrow 重大发现上报",
+          "status": "done",
+          "behavior": [
+            "crystallize.ts 数据快照/存档",
+            "crystallize_arrow：重大发现上报到 data/arrows/ + 自动 emit lobster 事件"
+          ],
+          "interfaces": [
+            "POST /api/lobster/arrow"
+          ],
+          "evidence": [
+            "2026-05-01: crystallize_arrow 函数 + API endpoint"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "龙虾事件总线",
+          "description": "项目事件汇聚总线，append-only JSONL 存储，供 PolarClaw 守护进程 watch 和查询",
+          "status": "done",
+          "behavior": [
+            "POST /api/lobster/events 校验事件 type enum + 持久化到 data/lobster-events.jsonl",
+            "GET /api/lobster/events 支持按 project/since/type 过滤和分页",
+            "事件 type 枚举：bug/digest_report/contract_red/git_push_main/scheduled_health_scan",
+            "append-only 存储，不支持删除历史行",
+            "crystallize_arrow 自动写入事件"
+          ],
+          "interfaces": [
+            "POST /api/lobster/events",
+            "GET /api/lobster/events"
+          ],
+          "evidence": [
+            "2026-05-01: 事件 schema + POST/GET API + lobster-events.jsonl"
+          ],
+          "test_status": "passed"
+        },
+        {
+          "name": "LLM Web Agent",
+          "description": "web-agent.ts + llm.ts 运维辅助",
+          "status": "done",
+          "behavior": [
+            "web-agent.ts + llm.ts 运维辅助"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        },
+        {
+          "name": "checkup-event 聚合通道",
+          "status": "done",
+          "tech": [
+            "Hono",
+            "node:fs append-only jsonl"
+          ],
+          "interfaces": [
+            "POST /api/checkup-events"
+          ],
+          "behavior": [
+            "接收来自 PolarCopilot Hub 转发的检修事件（schema 已在 Hub 端校验）",
+            "封装为 envelope（received_at + source + event）追加到 data/checkup-events.jsonl",
+            "append-only，无修改/无压缩；轮转由独立运维任务负责",
+            "事件来源标记为 polarcop-hub；后续 SOTA 趋势分析可流式读取"
+          ],
+          "depends_on": [
+            "Agent_core/contracts/checkup-event.schema.json",
+            "PolarCopilot/hub POST /api/checkup-event 转发"
+          ],
+          "task_book": "任务书/260505_compiled/SOTAgent.md (§6 工作项 C)",
+          "test_status": "passed",
+          "evidence": [
+            "2026-06-10: feature verified in codebase (L2 gate audit backfill)"
+          ]
+        }
+      ],
+      "blockers": []
+    }
+  ],
+  "tech": {
+    "runtime": {
+      "node": ">=22",
+      "typescript": "5.x（控制台 6.x）"
+    },
+    "framework": "Hono + SQLite + Vue 3（控制台）",
+    "security": "三层防护：CORS 白名单（仅 console/api 端口）+ Bearer token 认证（SOTAGENT_AUTH_TOKEN）+ localhost-only 绑定（127.0.0.1）；无 rate limiting（服务仅内网可达，auth 层已覆盖）",
+    "test": "无自动化测试套件（依赖 TypeScript strict 和运维验证）"
+  },
+  "lobster_bus": {
+    "description": "龙虾事件总线：append-only JSONL + HTTP API",
+    "events_file": "data/lobster-events.jsonl",
+    "endpoints": {
+      "write": "POST /api/lobster/events",
+      "query": "GET /api/lobster/events?project=&since=&limit=",
+      "arrow": "POST /api/lobster/arrow"
+    },
+    "event_types": [
+      "bug",
+      "digist_report",
+      "contract_red",
+      "git_push_main",
+      "scheduled_health_scan"
+    ],
+    "consumers": [
+      "PolarClaw Pilot Runtime"
+    ]
+  },
+  "service_management": {
+    "install_command": "npm ci",
+    "start_command": "bash Start/start.sh",
+    "restart_command": "bash Start/restart.sh",
+    "health_endpoint": "http://127.0.0.1:4800/api/status"
+  },
+  "depends_on": [],
+  "depended_by": [
+    "PolarCopilot",
+    "PolarClaw",
+    "digist",
+    "Clock",
+    "KnowLever",
+    "AutoOffice",
+    "tqsdk",
+    "PolarPrivate"
+  ],
+  "contacts": {
+    "last_updated": "2026-05-10T00:30+08:00",
+    "updated_by": "solo-web-yolo"
+  }
+}

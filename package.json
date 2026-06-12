@@ -1,0 +1,36 @@
+{
+  "name": "sotagent",
+  "version": "0.1.0",
+  "description": "\u8de8\u8bbe\u5907\u667a\u80fd\u4f53\u96c6\u7fa4\u5b88\u62a4\u8fdb\u7a0b \u2014 SOTA \u6280\u672f\u540c\u6b65 + \u8d44\u6e90\u8c03\u5ea6 + Agent \u901a\u4fe1",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "tsx src/main.ts",
+    "web": "tsx src/web.ts",
+    "sync": "tsx src/cli.ts sync",
+    "schedule": "tsx src/cli.ts schedule",
+    "status": "tsx src/cli.ts status",
+    "process-inbox": "tsx src/cli.ts process-inbox",
+    "monitor": "tsx src/cli.ts monitor",
+    "test": "node --test tests/contracts/contracts.test.mjs tests/r1-port-management/*.test.mjs tests/r2-process-lifecycle/*.test.mjs tests/r3-git-sync/*.test.mjs tests/r4-gateway/*.test.mjs tests/r5-monitoring/*.test.mjs"
+  },
+  "dependencies": {
+    "@hono/node-server": "^1.19.14",
+    "ajv": "^8.18.0",
+    "better-sqlite3": "^11.7.0",
+    "drizzle-orm": "^0.39.0",
+    "hono": "^4.12.12",
+    "nanoid": "^5.1.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^22.0.0",
+    "ajv-formats": "^3.0.1",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

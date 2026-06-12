@@ -1,0 +1,36 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PeerSync Protocol",
+  "description": "SOTAgent PeerSync 跨设备同步协议契约。",
+  "type": "object",
+  "required": ["type"],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": ["heartbeat", "sync-request", "sync-response", "conflict-detected", "conflict-resolved"]
+    },
+    "peer_id": { "type": "string" },
+    "device_name": { "type": "string" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "projects_hash": {
+      "type": "string",
+      "description": "所有受管项目状态的哈希（用于快速检测变更）"
+    },
+    "changed_projects": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "自上次同步后有变更的项目列表"
+    },
+    "conflict": {
+      "type": "object",
+      "properties": {
+        "project": { "type": "string" },
+        "file": { "type": "string" },
+        "local_hash": { "type": "string" },
+        "remote_hash": { "type": "string" },
+        "resolution": { "type": "string", "enum": ["local-wins", "remote-wins", "manual"] }
+      }
+    }
+  },
+  "additionalProperties": false
+}

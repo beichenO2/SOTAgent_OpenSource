@@ -1,0 +1,13 @@
+{
+  "type": "port_request",
+  "from": "polarprivate-register",
+  "device": "Mac-Studio.local",
+  "project": "PolarPrivate",
+  "timestamp": "2026-04-12T11:51:31Z",
+  "payload": {
+    "service_name": "privportal-backend",
+    "preferred_port": 8790,
+    "port_range_start": 3000,
+    "port_range_end": 9999
+  }
+}

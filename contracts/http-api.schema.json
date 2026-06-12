@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SOTAgent HTTP API",
+  "description": "SOTAgent 对外 HTTP API 契约摘要。详见各 endpoint 的 request/response 子 schema。",
+  "type": "object",
+  "properties": {
+    "endpoints": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["method", "path", "category"],
+        "properties": {
+          "method": { "type": "string", "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"] },
+          "path": { "type": "string" },
+          "category": { "type": "string", "enum": ["gateway", "scan", "ports", "capabilities", "health", "resources", "tasks", "projects", "assets", "services", "peer", "lobster"] },
+          "description": { "type": "string" },
+          "request_schema": { "type": "object" },
+          "response_schema": { "type": "object" }
+        }
+      }
+    }
+  }
+}

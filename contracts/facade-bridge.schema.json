@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "facade-bridge.schema.json",
+  "title": "FacadeBridgeContract",
+  "description": "Contract for SOTAgent facade bridges — transparent proxy + fallback to legacy implementation",
+
+  "definitions": {
+    "ProxyResult": {
+      "type": "object",
+      "required": ["ok", "status", "proxied"],
+      "properties": {
+        "ok": { "type": "boolean", "description": "Whether the proxied request succeeded" },
+        "status": { "type": "integer", "description": "HTTP status code from target or fallback" },
+        "body": { "description": "Response body from target or fallback" },
+        "proxied": { "type": "boolean", "description": "true if request was forwarded to target service" },
+        "target": { "type": "string", "description": "Target service address (e.g. 127.0.0.1:11050)" },
+        "error": { "type": "string", "description": "Error message if proxy failed" }
+      }
+    },
+
+    "BridgeTarget": {
+      "type": "object",
+      "required": ["serviceName", "project", "defaultPort", "envVar"],
+      "properties": {
+        "serviceName": { "type": "string" },
+        "project": { "type": "string" },
+        "defaultPort": { "type": "integer" },
+        "envVar": { "type": "string" }
+      }
+    },
+
+    "SunsetCheckResult": {
+      "type": "object",
+      "required": ["capability_id", "indicator_grep", "indicator_registry", "can_sunset", "detail"],
+      "properties": {
+        "capability_id": { "type": "string" },
+        "indicator_grep": { "type": "boolean", "description": "true = no callers reference old endpoint" },
+        "indicator_registry": { "type": "boolean", "description": "true = capability status = migrated" },
+        "can_sunset": { "type": "boolean", "description": "true = both indicators pass, ready for removal" },
+        "detail": { "type": "string" }
+      }
+    }
+  },
+
+  "bridgeMappings": [
+    {
+      "facade": "ports-bridge",
+      "target": "PolarPort",
+      "routes": [
+        { "method": "GET",  "path": "/api/ports",             "targetPath": "/api/list" },
+        { "method": "POST", "path": "/api/ports/allocate",    "targetPath": "/api/allocate" },
+        { "method": "POST", "path": "/api/ports/release",     "targetPath": "/api/release" },
+        { "method": "POST", "path": "/api/ports/heartbeat",   "targetPath": "/api/heartbeat" }
+      ]
+    },
+    {
+      "facade": "process-bridge",
+      "target": "PolarProcess",
+      "routes": [
+        { "method": "GET",  "path": "/api/services",                       "targetPath": "/api/services" },
+        { "method": "GET",  "path": "/api/services/:id",                   "targetPath": "/api/services/:id" },
+        { "method": "POST", "path": "/api/services",                       "targetPath": "/api/services" },
+        { "method": "POST", "path": "/api/services/register-and-start",    "targetPath": "/api/services/register-and-start" },
+        { "method": "POST", "path": "/api/services/:id/start",             "targetPath": "/api/services/:id/start" },
+        { "method": "POST", "path": "/api/services/:id/stop",              "targetPath": "/api/services/:id/stop" },
+        { "method": "POST", "path": "/api/services/:id/restart",           "targetPath": "/api/services/:id/restart" },
+        { "method": "POST", "path": "/api/processes/adopt",                "targetPath": "/api/processes/adopt" },
+        { "method": "DELETE","path": "/api/processes/:pid",                "targetPath": "/api/processes/:pid" },
+        { "method": "GET",  "path": "/api/processes",                      "targetPath": "/api/processes" },
+        { "method": "POST", "path": "/api/tasks",                          "targetPath": "/api/tasks" },
+        { "method": "POST", "path": "/api/tasks/forward",                  "targetPath": "/api/tasks/forward" },
+        { "method": "GET",  "path": "/api/scheduler/reservations",         "targetPath": "/api/scheduler/reservations" },
+        { "method": "POST", "path": "/api/scheduler/check-admission",      "targetPath": "/api/scheduler/check-admission" }
+      ]
+    },
+    {
+      "facade": "peer-sync-bridge",
+      "target": "PolarSync",
+      "routes": [
+        { "method": "POST", "path": "/api/peer/heartbeat",    "targetPath": "/api/peer/heartbeat" },
+        { "method": "POST", "path": "/api/peer/notify",       "targetPath": "/api/peer/notify" },
+        { "method": "POST", "path": "/api/peer/notify-push",  "targetPath": "/api/peer/notify-push" },
+        { "method": "GET",  "path": "/api/peer/status",       "targetPath": "/api/peer/status" },
+        { "method": "POST", "path": "/api/peer/resolve",      "targetPath": "/api/peer/resolve" }
+      ]
+    },
+    {
+      "facade": "inbox-bridge",
+      "target": "PolarCopilot/hub",
+      "routes": [
+        { "method": "POST", "path": "/api/lobster/events",    "targetPath": "/api/lobster/events" },
+        { "method": "GET",  "path": "/api/lobster/events",    "targetPath": "/api/lobster/events (local read)" }
+      ]
+    },
+    {
+      "facade": "ops-bridge",
+      "target": "PolarOps",
+      "routes": [
+        { "method": "POST", "path": "/api/checkup-events",    "targetPath": "/api/checkup-events" },
+        { "method": "GET",  "path": "/api/knowlever/status",  "targetPath": "/api/knowlever/status" },
+        { "method": "GET",  "path": "/api/knowlever/topics",  "targetPath": "/api/knowlever/topics" },
+        { "method": "GET",  "path": "/api/digist/status",     "targetPath": "/api/digist/status" },
+        { "method": "GET",  "path": "/api/digist/interests",  "targetPath": "/api/digist/interests" },
+        { "method": "GET",  "path": "/api/digist/sources",    "targetPath": "/api/digist/sources" }
+      ]
+    }
+  ],
+
+  "sunsetChecker": {
+    "description": "Dual-indicator sunset detection",
+    "schedule": "every 60 minutes",
+    "indicators": {
+      "grep": "grep -rn '<endpoint>' ~/Polarisor --exclude facade → 0 matches",
+      "registry": "capability_registry.status = 'migrated'"
+    },
+    "trigger": "both indicators pass → POST /api/ui/prompts to Hub",
+    "manual_accelerate": "任务书/.facade-sunset/<capability_id>.confirm file existence"
+  }
+}

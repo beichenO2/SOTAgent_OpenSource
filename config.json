@@ -1,0 +1,325 @@
+{
+  "version": 2,
+  "ports": {
+    "sotagent_api": 4800,
+    "sotagent_console": 4880,
+    "polar_private": 12790,
+    "autooffice": 3900,
+    "infoforge_api": 3901,
+    "infoforge_sse": 3902,
+    "knowlever_rag": 18080,
+    "knowlever_wiki": 18085,
+    "polarclaw_web": 3910,
+    "polarpilot": 4900,
+    "polarport_api": 11050,
+    "polarmemory": 3100,
+    "polarcop_web_dev": 5180,
+    "polarcop_hub": 8040,
+    "digist_api": 3800,
+    "lm_studio": 1234,
+    "vocab_app": 3000,
+    "llama_server": 8080,
+    "polarcop_stepflow": 8765,
+    "ai_daily_digest": 8785,
+    "knowlever_embedding": 8801,
+    "ollama": 11434,
+    "tqsdk_collector": 18900,
+    "claude_code_viz": 19120,
+    "polar_process": 11055,
+    "polarops": 11065,
+    "polarui": 5170
+  },
+  "sentinel": {
+    "poll_interval_sec": 30,
+    "use_fswatch": true
+  },
+  "resource_monitor": {
+    "interval_sec": 60,
+    "cpu_idle_threshold": 40,
+    "mem_idle_threshold_percent": 70
+  },
+  "sync": {
+    "auto_sync_types": [
+      "skill",
+      "config"
+    ],
+    "suggest_sync_types": [
+      "architecture",
+      "workflow",
+      "methodology",
+      "framework",
+      "pattern"
+    ]
+  },
+  "scheduler": {
+    "max_concurrent_heavy_tasks": 1,
+    "pause_on_cpu_above": 80,
+    "pause_on_mem_above_percent": 85
+  },
+  "devices": {
+    "macbook-pro": {
+      "display_name": "MacBook Pro",
+      "role": "dev",
+      "tailscale_ip": "100.103.19.43",
+      "ssh_user": "macbook",
+      "capabilities": [
+        "dev",
+        "web",
+        "agent"
+      ]
+    },
+    "Mac-Studio": {
+      "display_name": "Mac Studio",
+      "role": "compute",
+      "tailscale_ip": "100.117.92.110",
+      "capabilities": [
+        "compute",
+        "gpu",
+        "whisper",
+        "llm-local",
+        "dev"
+      ],
+      "ssh_user": "mac"
+    }
+  },
+  "polar_private": {
+    "base_url": "http://127.0.0.1:12790",
+    "auto_sync": {
+      "enabled": true,
+      "interval_minutes": 30
+    }
+  },
+  "silent_restart_window_sec": 7200,
+  "process_manager": {
+    "health_check_interval_sec": 120,
+    "auto_start_delay_sec": 15,
+    "restart_cooldown_sec": 15,
+    "startup_grace_sec": 60
+  },
+  "sandbox": {
+    "default_nice_priority": 10,
+    "default_max_duration_sec": 86400,
+    "default_output_timeout_sec": 1800,
+    "monitor_interval_sec": 30,
+    "prune_completed_after_sec": 3600
+  },
+  "peer_sync": {
+    "enabled": true,
+    "heartbeat_interval_sec": 30,
+    "auto_pull_on_clean": true,
+    "scan_root": "~/Polarisor",
+    "alert_on_conflict": true,
+    "peer_secret_env": "SOTAGENT_PEER_SECRET",
+    "global_ignore": [
+      ".planning/sync-log.jsonl",
+      ".planning/**/*.tmp"
+    ],
+    "project_whitelist": [
+      "AutoOffice",
+      "digist",
+      "macbook",
+      "SOTAgent",
+      "PolarisLab",
+      "PolarisVault",
+      "PolarPrivate"
+    ],
+    "rsync_large_files": {
+      "enabled": true,
+      "ssh_port": 22,
+      "exclude_patterns": [
+        ".git/",
+        "node_modules/",
+        ".DS_Store"
+      ],
+      "bandwidth_limit_kbps": 0
+    }
+  },
+  "gateway": {
+    "enabled": true,
+    "base_path": "/gw",
+    "routes": [
+      {
+        "prefix": "polarprivate",
+        "target_port": 12790,
+        "service_id": "polarprivate-backend"
+      },
+      {
+        "prefix": "digist",
+        "target_port": 3800,
+        "service_id": "digist"
+      },
+      {
+        "prefix": "autooffice",
+        "target_port": 3900,
+        "service_id": "autooffice"
+      },
+      {
+        "prefix": "clock",
+        "target_port": 15550,
+        "service_id": "polarclock-backend"
+      },
+      {
+        "prefix": "gsd2",
+        "target_port": 8765,
+        "service_id": "gsd2-hub"
+      },
+      {
+        "prefix": "knowlever",
+        "target_port": 18080,
+        "service_id": "knowlever-rag"
+      },
+      {
+        "prefix": "polarclaw",
+        "target_port": 0,
+        "service_id": "polarclaw-web"
+      },
+      {
+        "prefix": "pcweb",
+        "target_port": 5180,
+        "service_id": "polarcop-web-dev"
+      }
+    ]
+  },
+  "port_governance": {
+    "rule": "所有端口必须以 0 或 5 结尾",
+    "reserved_ports": [
+      3000,
+      8000,
+      8080
+    ],
+    "reserved_reason": "3000/8000 是经典默认端口易冲突，8080 保留"
+  },
+  "security": {
+    "bind_host": "0.0.0.0",
+    "auth_token_env": "SOTAGENT_AUTH_TOKEN",
+    "public_routes": [
+      "/api/status",
+      "/api/peer/heartbeat",
+      "/api/peer/notify",
+      "/api/peer/notify-push",
+      "/api/ports/config"
+    ]
+  },
+  "ssot_watcher": {
+    "enabled": true,
+    "debounce_ms": 500,
+    "watch_patterns": [
+      "polaris.json",
+      "PolarSoul.md",
+      "capabilities.json"
+    ],
+    "log_file": "~/.sotagent/logs/ssot-events.jsonl",
+    "polling_interval_sec": 60
+  },
+  "built_in_services": [
+    {
+      "id": "autooffice",
+      "name": "AutoOffice",
+      "command": "node dist/cli.js serve -p 3900",
+      "work_dir": "~/Polarisor/AutoOffice",
+      "port": 3900,
+      "health_check_url": "http://127.0.0.1:3900/health",
+      "auto_start": true,
+      "restart_on_failure": true,
+      "max_restarts": 30
+    },
+    {
+      "id": "polarclaw",
+      "name": "PolarClaw Agent",
+      "command": "npm start",
+      "work_dir": "~/Polarisor/PolarClaw",
+      "auto_start": true,
+      "restart_on_failure": true,
+      "max_restarts": 30
+    },
+    {
+      "id": "polarui",
+      "name": "PolarUI (Preview)",
+      "command": "npm run preview -- --port 5170 --host 127.0.0.1",
+      "work_dir": "~/Polarisor/PolarUI",
+      "port": 5170,
+      "health_check_url": "http://127.0.0.1:5170/",
+      "auto_start": true,
+      "restart_on_failure": true,
+      "max_restarts": 30
+    },
+    {
+      "id": "polarcop-web-dev",
+      "name": "PolarCopilot Web (Dev)",
+      "command": "HUB_PORT=3850 npm run dev",
+      "work_dir": "~/Polarisor/PolarCopilot/web",
+      "port": 5180,
+      "health_check_url": "http://127.0.0.1:5180/",
+      "auto_start": false,
+      "restart_on_failure": true,
+      "max_restarts": 30
+    },
+    {
+      "id": "digist-daily-digest",
+      "name": "DiGist Daily Digest",
+      "command": "bash scripts/daily-digest.sh",
+      "work_dir": "~/Polarisor/digist",
+      "auto_start": false,
+      "restart_on_failure": false,
+      "max_restarts": 0,
+      "cron_schedule": "0 6,8,11,14,17,20,23 * * *"
+    },
+    {
+      "id": "knowlever-wiki",
+      "name": "KnowLever Wiki Server",
+      "command": "BASE_PATH=/knowlever-wiki node wiki-engine/serve-multi.js",
+      "work_dir": "~/Polarisor/KnowLever",
+      "port": 18085,
+      "health_check_url": "http://127.0.0.1:18085/",
+      "auto_start": true,
+      "restart_on_failure": true,
+      "max_restarts": 30
+    },
+    {
+      "id": "knowlever-rag",
+      "name": "KnowLever RAG API",
+      "command": ".venv/bin/python3 -m rag.api_server",
+      "work_dir": "~/Polarisor/KnowLever",
+      "port": 18080,
+      "health_check_url": "http://127.0.0.1:18080/api/health",
+      "auto_start": true,
+      "restart_on_failure": true,
+      "max_restarts": 30,
+      "env": {
+        "KNOWLEVER_PORT": "18080"
+      }
+    },
+    {
+      "id": "polar-memory",
+      "name": "PolarMemory",
+      "command": "npx tsx src/api_server.ts",
+      "work_dir": "~/Polarisor/PolarMemory",
+      "port": 3100,
+      "health_check_url": "http://127.0.0.1:3100/health",
+      "auto_start": true,
+      "restart_on_failure": true,
+      "max_restarts": 3
+    },
+    {
+      "id": "polarpilot",
+      "name": "PolarPilot",
+      "command": "node dist/cli.mjs",
+      "work_dir": "~/Polarisor/PolarPilot",
+      "port": 4900,
+      "health_check_url": "http://127.0.0.1:4900/api/health",
+      "auto_start": true,
+      "restart_on_failure": true,
+      "max_restarts": 30
+    },
+    {
+      "id": "ssot-audit",
+      "name": "SSoT 定时审计",
+      "command": "bash scripts/run-ssot-audit.sh",
+      "work_dir": "~/Polarisor/Agent_core",
+      "auto_start": false,
+      "restart_on_failure": false,
+      "max_restarts": 0,
+      "cron_schedule": "0 */4 * * *"
+    }
+  ]
+}

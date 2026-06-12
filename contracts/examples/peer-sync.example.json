@@ -1,0 +1,8 @@
+{
+  "type": "heartbeat",
+  "peer_id": "mac-studio-001",
+  "device_name": "Mac Studio (home)",
+  "timestamp": "2026-05-08T13:14:00+08:00",
+  "projects_hash": "5f3c9a2b4d8e7f1c0b9a8d7e6f5c4b3a",
+  "changed_projects": ["KnowLever", "SOTAgent"]
+}

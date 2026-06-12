@@ -1,0 +1,38 @@
+{
+  "endpoints": [
+    {
+      "method": "GET",
+      "path": "/api/health",
+      "category": "health",
+      "description": "Liveness probe; returns 200 with build/version info."
+    },
+    {
+      "method": "POST",
+      "path": "/api/ports/allocate",
+      "category": "ports",
+      "description": "Allocate a port for a service (de-dups across the ecosystem).",
+      "request_schema": {
+        "type": "object",
+        "required": ["service_name", "project"],
+        "properties": {
+          "service_name": { "type": "string" },
+          "project": { "type": "string" },
+          "preferred_port": { "type": "integer" }
+        }
+      },
+      "response_schema": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "port": { "type": "integer" }
+        }
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/api/checkup-events",
+      "category": "lobster",
+      "description": "Receive checkup events forwarded from PolarCopilot Hub; append to data/checkup-events.jsonl."
+    }
+  ]
+}

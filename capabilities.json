@@ -1,0 +1,205 @@
+{
+  "project": "SOTAgent",
+  "version": "1.0.0",
+  "capabilities": [
+    {
+      "id": "sotagent.ports.allocate",
+      "service_name": "sotagent-api",
+      "description": "分配端口给服务，防止端口冲突",
+      "transport": "http",
+      "endpoint": "/api/ports/allocate",
+      "method": "POST",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "service_name",
+          "project"
+        ],
+        "properties": {
+          "service_name": {
+            "type": "string"
+          },
+          "project": {
+            "type": "string"
+          },
+          "preferred_port": {
+            "type": "integer"
+          }
+        }
+      },
+      "output_schema": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          },
+          "port": {
+            "type": "integer"
+          }
+        }
+      },
+      "idempotent": false,
+      "side_effects": true,
+      "timeout_ms": 5000,
+      "status": "pending_migration",
+      "migration_note": "已外包到 PolarPort (port 11050)。facade bridge 已启用 (SOTAgent/src/facade/ports-bridge.ts)，旧端点透明转发到 PolarPort，fallback 到本地 db。sunset-checker 将在 grep=0 + registry=migrated 时通知用户批准删除 facade。"
+    },
+    {
+      "id": "sotagent.ports.list",
+      "service_name": "sotagent-api",
+      "description": "列出所有活跃端口注册",
+      "transport": "http",
+      "endpoint": "/api/ports",
+      "method": "GET",
+      "idempotent": true,
+      "side_effects": false,
+      "timeout_ms": 3000,
+      "status": "pending_migration",
+      "migration_note": "已外包到 PolarPort (port 11050)。facade bridge 已启用，旧端点透明转发到 PolarPort。"
+    },
+    {
+      "id": "sotagent.capabilities.search",
+      "service_name": "sotagent-api",
+      "description": "按关键词搜索生态内已注册的能力",
+      "transport": "http",
+      "endpoint": "/api/capabilities/search",
+      "method": "GET",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "q"
+        ],
+        "properties": {
+          "q": {
+            "type": "string",
+            "description": "搜索关键词"
+          }
+        }
+      },
+      "idempotent": true,
+      "side_effects": false,
+      "timeout_ms": 3000
+    },
+    {
+      "id": "sotagent.capabilities.list",
+      "service_name": "sotagent-api",
+      "description": "列出所有已注册能力",
+      "transport": "http",
+      "endpoint": "/api/capabilities",
+      "method": "GET",
+      "idempotent": true,
+      "side_effects": false,
+      "timeout_ms": 3000
+    },
+    {
+      "id": "sotagent.capabilities.register-batch",
+      "service_name": "sotagent-api",
+      "description": "批量注册能力到注册表",
+      "transport": "http",
+      "endpoint": "/api/capabilities/register-batch",
+      "method": "POST",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "capabilities",
+          "project"
+        ],
+        "properties": {
+          "capabilities": {
+            "type": "array"
+          },
+          "project": {
+            "type": "string"
+          },
+          "service_name": {
+            "type": "string"
+          }
+        }
+      },
+      "idempotent": true,
+      "side_effects": true,
+      "timeout_ms": 5000
+    },
+    {
+      "id": "sotagent.status",
+      "service_name": "sotagent-api",
+      "description": "获取 SOTAgent 整体状态（设备、任务、项目、资产）",
+      "transport": "http",
+      "endpoint": "/api/status",
+      "method": "GET",
+      "idempotent": true,
+      "side_effects": false,
+      "timeout_ms": 5000
+    },
+    {
+      "id": "sotagent.scan",
+      "service_name": "sotagent-api",
+      "description": "获取所有项目 Git 仓库扫描结果",
+      "transport": "http",
+      "endpoint": "/api/scan",
+      "method": "GET",
+      "idempotent": true,
+      "side_effects": false,
+      "timeout_ms": 10000
+    },
+    {
+      "id": "sotagent.projects.list",
+      "service_name": "sotagent-api",
+      "description": "列出所有已注册项目",
+      "transport": "http",
+      "endpoint": "/api/projects",
+      "method": "GET",
+      "idempotent": true,
+      "side_effects": false,
+      "timeout_ms": 3000
+    },
+    {
+      "id": "sotagent.services.list",
+      "service_name": "sotagent-api",
+      "description": "列出所有管理的服务及其状态",
+      "transport": "http",
+      "endpoint": "/api/services",
+      "method": "GET",
+      "idempotent": true,
+      "side_effects": false,
+      "timeout_ms": 3000,
+      "status": "pending_migration",
+      "migration_note": "已外包到 PolarProcess (port 11055)。facade bridge 已启用，旧端点透明转发到 PolarProcess。"
+    },
+    {
+      "id": "sotagent.services.start",
+      "service_name": "sotagent-api",
+      "description": "启动一个受管服务",
+      "transport": "http",
+      "endpoint": "/api/services/:id/start",
+      "method": "POST",
+      "idempotent": false,
+      "side_effects": true,
+      "timeout_ms": 30000,
+      "status": "pending_migration",
+      "migration_note": "已外包到 PolarProcess (port 11055)。facade bridge 已启用，旧端点透明转发到 PolarProcess。"
+    },
+    {
+      "id": "sotagent.crystals.match",
+      "service_name": "sotagent-api",
+      "description": "用自然语言查询匹配已结晶的知识（经验沉淀）",
+      "transport": "http",
+      "endpoint": "/api/crystals/match",
+      "method": "POST",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string"
+          }
+        }
+      },
+      "idempotent": true,
+      "side_effects": false,
+      "timeout_ms": 5000
+    }
+  ]
+}

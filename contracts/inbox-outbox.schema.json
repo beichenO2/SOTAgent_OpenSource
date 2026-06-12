@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SOTAgent InboxOutbox Message",
+  "description": "SOTAgent inbox/outbox 文件消息格式契约。",
+  "type": "object",
+  "required": ["id", "source", "target", "type", "payload", "timestamp"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "source": { "type": "string", "description": "发送方项目名" },
+    "target": { "type": "string", "description": "目标项目名" },
+    "type": { "type": "string", "description": "消息类型（如 command / query / event / response）" },
+    "payload": { "type": "object", "description": "消息体，格式因 type 而异" },
+    "timestamp": { "type": "string", "format": "date-time" },
+    "ttl_seconds": { "type": "integer", "minimum": 0, "description": "消息有效期（秒）" }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,12 @@
+{
+  "project": "SOTAgent",
+  "generated_at": "2026-05-02T17:44:27.902Z",
+  "files": [
+    "checklists/checklist-concept-git-lfs.md",
+    "checklists/checklist-concept-reference-mgmt.md",
+    "checklists/checklist-entity-reference-directory.md",
+    "skills/skill-concept-git-lfs.md",
+    "skills/skill-concept-reference-mgmt.md",
+    "skills/skill-entity-reference-directory.md"
+  ]
+}

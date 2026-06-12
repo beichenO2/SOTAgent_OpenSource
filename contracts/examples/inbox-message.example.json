@@ -1,0 +1,14 @@
+{
+  "id": "a1b2c3d4-0000-0000-0000-000000000001",
+  "source": "KnowLever",
+  "target": "SOTAgent",
+  "type": "event",
+  "payload": {
+    "event_type": "compile_complete",
+    "topic": "pharm-study",
+    "atom_count": 156,
+    "tree_depth": 4
+  },
+  "timestamp": "2026-05-08T12:00:00+08:00",
+  "ttl_seconds": 86400
+}

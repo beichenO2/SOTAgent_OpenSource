@@ -1,0 +1,301 @@
+#!/bin/bash
+# sotctl — SOTAgent 统一管理命令
+#
+# 用法:
+#   sotctl start          启动 SOTAgent（launchd 服务）
+#   sotctl stop           停止 SOTAgent（launchd 服务）
+#   sotctl restart        重启 SOTAgent
+#   sotctl status         查看 SOTAgent + 所有托管服务状态
+#   sotctl logs           查看最近日志
+#   sotctl logs -f        实时跟踪日志
+#
+# 注意: 此工具管理 SOTAgent 守护进程本身，不是其托管的子服务。
+#       子服务通过 SOTAgent API 或 Web 控制台管理。
+
+set -eo pipefail
+
+LABEL="com.sotagent.web"
+PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+API_PORT=4800
+LOG_OUT="$HOME/Library/Logs/sotagent-web.log"
+LOG_ERR="$HOME/Library/Logs/sotagent-web.err.log"
+UID_NUM=$(id -u)
+
+_is_running() {
+  lsof -ti:$API_PORT >/dev/null 2>&1
+}
+
+_api() {
+  curl -s --max-time 3 "http://127.0.0.1:${API_PORT}$1" 2>/dev/null
+}
+
+cmd_start() {
+  if _is_running; then
+    echo "SOTAgent 已在运行 (port $API_PORT)"
+    return 0
+  fi
+
+  if [ ! -f "$PLIST" ]; then
+    echo "错误: launchd plist 不存在: $PLIST"
+    echo "运行 'cd ~/Polarisor/SOTAgent && bash bin/install.sh' 安装"
+    exit 1
+  fi
+
+  launchctl bootstrap "gui/$UID_NUM" "$PLIST" 2>/dev/null || \
+    launchctl kickstart "gui/$UID_NUM/$LABEL" 2>/dev/null || true
+
+  echo -n "启动中"
+  for i in $(seq 1 10); do
+    sleep 1
+    echo -n "."
+    if _is_running; then
+      echo " 完成"
+      echo "SOTAgent 已启动 (port $API_PORT)"
+      return 0
+    fi
+  done
+  echo " 超时"
+  echo "启动失败，检查日志: tail -20 $LOG_ERR"
+  exit 1
+}
+
+cmd_stop() {
+  if ! _is_running; then
+    echo "SOTAgent 未运行"
+    launchctl bootout "gui/$UID_NUM/$LABEL" 2>/dev/null || true
+    return 0
+  fi
+
+  launchctl bootout "gui/$UID_NUM/$LABEL" 2>/dev/null || true
+  sleep 2
+
+  if _is_running; then
+    echo "launchd 卸载后进程仍存在，发送 SIGTERM..."
+    lsof -ti:$API_PORT 2>/dev/null | xargs kill 2>/dev/null || true
+    sleep 2
+  fi
+
+  if _is_running; then
+    echo "SIGTERM 无效，发送 SIGKILL..."
+    lsof -ti:$API_PORT 2>/dev/null | xargs kill -9 2>/dev/null || true
+    sleep 1
+  fi
+
+  echo "SOTAgent 已停止"
+}
+
+cmd_restart() {
+  echo "重启 SOTAgent..."
+  cmd_stop
+  sleep 1
+  launchctl bootstrap "gui/$UID_NUM" "$PLIST" 2>/dev/null || true
+  echo -n "启动中"
+  for i in $(seq 1 10); do
+    sleep 1
+    echo -n "."
+    if _is_running; then
+      echo " 完成"
+      echo "SOTAgent 已重启 (port $API_PORT)"
+      return 0
+    fi
+  done
+  echo " 超时"
+  echo "重启失败，检查日志: tail -20 $LOG_ERR"
+  exit 1
+}
+
+cmd_status() {
+  echo "=== SOTAgent 守护进程 ==="
+  if _is_running; then
+    local PIDS
+    PIDS=$(lsof -ti:$API_PORT 2>/dev/null | tr '\n' ',' | sed 's/,$//')
+    echo "  状态: 运行中"
+    echo "  端口: $API_PORT"
+    echo "  PID:  $PIDS"
+
+    local STATUS
+    STATUS=$(_api "/api/status" 2>/dev/null)
+    if [ -n "$STATUS" ]; then
+      local DEVICE CPU MEM TASKS_Q TASKS_R
+      DEVICE=$(echo "$STATUS" | python3 -c "import sys,json;d=json.loads(sys.stdin.read());print(d['device']['id'])" 2>/dev/null)
+      CPU=$(echo "$STATUS" | python3 -c "import sys,json;d=json.loads(sys.stdin.read());print(d['resource']['cpu_percent'])" 2>/dev/null)
+      MEM=$(echo "$STATUS" | python3 -c "import sys,json;d=json.loads(sys.stdin.read());print(round(d['resource']['mem_percent'],1))" 2>/dev/null)
+      echo "  设备: $DEVICE"
+      echo "  CPU:  ${CPU}%"
+      echo "  内存: ${MEM}%"
+    fi
+  else
+    echo "  状态: 已停止"
+
+    local LAUNCHD_STATE
+    LAUNCHD_STATE=$(launchctl print "gui/$UID_NUM/$LABEL" 2>/dev/null | grep "state =" | awk '{print $3}')
+    if [ -n "$LAUNCHD_STATE" ]; then
+      echo "  launchd: $LAUNCHD_STATE"
+    else
+      echo "  launchd: 未注册"
+    fi
+  fi
+
+  echo ""
+  echo "=== 托管服务 ==="
+  if _is_running; then
+    local SERVICES
+    SERVICES=$(_api "/api/services" 2>/dev/null)
+    if [ -n "$SERVICES" ]; then
+      echo "$SERVICES" | python3 -c "
+import sys,json
+services=json.loads(sys.stdin.read())
+if not services:
+    print('  (无托管服务)')
+    sys.exit()
+for s in sorted(services, key=lambda x: x.get('name','')):
+    status = s.get('status','?')
+    icon = {'running':'●','stopped':'○','error':'✗','starting':'◌'}.get(status,'?')
+    name = s.get('name','?')
+    port = s.get('port','')
+    port_str = f' :{port}' if port else ''
+    pid = s.get('pid','')
+    pid_str = f' (pid={pid})' if pid else ''
+    print(f'  {icon} {name:30s} {status:10s}{port_str}{pid_str}')
+" 2>/dev/null || echo "  (无法解析服务列表)"
+    fi
+  else
+    echo "  (SOTAgent 未运行，无法查询)"
+  fi
+}
+
+cmd_logs() {
+  if [ "$1" = "-f" ]; then
+    tail -f "$LOG_OUT" "$LOG_ERR"
+  else
+    echo "=== stdout (最近 30 行) ==="
+    tail -30 "$LOG_OUT" 2>/dev/null || echo "(无日志)"
+    echo ""
+    echo "=== stderr (最近 20 行) ==="
+    tail -20 "$LOG_ERR" 2>/dev/null || echo "(无日志)"
+  fi
+}
+
+cmd_sandbox() {
+  local sub="${1:-status}"
+  case "$sub" in
+    status)
+      if ! _is_running; then
+        echo "SOTAgent 未运行"
+        exit 1
+      fi
+      local DATA
+      DATA=$(_api "/api/sandbox/status" 2>/dev/null)
+      if [ -z "$DATA" ] || [ "$DATA" = "[]" ]; then
+        echo "暂无沙箱进程"
+        return 0
+      fi
+      echo "=== 沙箱进程 ==="
+      echo "$DATA" | python3 -c "
+import sys,json
+sbs=json.loads(sys.stdin.read())
+if not sbs:
+    print('  (无沙箱进程)')
+    sys.exit()
+for s in sbs:
+    status = s.get('status','?')
+    icon = {'running':'●','stale':'⚠','completed':'✓','timeout':'⏰','stopped':'○','error':'✗'}.get(status,'?')
+    name = s.get('name','?')
+    pid = s.get('pid','')
+    elapsed = s.get('elapsed_sec',0)
+    cpu = s.get('cpu_percent')
+    mem = s.get('mem_rss_mb')
+    metrics = ''
+    if cpu is not None: metrics += f' CPU={cpu}%'
+    if mem is not None: metrics += f' MEM={mem}MB'
+    m,sec = divmod(elapsed, 60)
+    h,m = divmod(m, 60)
+    dur = f'{h}h{m}m' if h else f'{m}m{sec}s'
+    print(f'  {icon} {name:25s} {status:12s} pid={pid}  {dur}{metrics}')
+" 2>/dev/null || echo "  (解析失败)"
+      ;;
+    start)
+      if ! _is_running; then echo "SOTAgent 未运行"; exit 1; fi
+      shift
+      local CMD="$1"
+      if [ -z "$CMD" ]; then echo "用法: sotctl sandbox start <command> [--name NAME] [--timeout SEC] [--nice N]"; exit 1; fi
+      shift
+      local NAME="" TIMEOUT="" NICE="10" WORKDIR="" OUTDIR="" OUT_TIMEOUT=""
+      while [ $# -gt 0 ]; do
+        case "$1" in
+          --name) NAME="$2"; shift 2 ;;
+          --timeout) TIMEOUT="$2"; shift 2 ;;
+          --nice) NICE="$2"; shift 2 ;;
+          --workdir) WORKDIR="$2"; shift 2 ;;
+          --output-dir) OUTDIR="$2"; shift 2 ;;
+          --output-timeout) OUT_TIMEOUT="$2"; shift 2 ;;
+          *) shift ;;
+        esac
+      done
+      local JSON="{\"command\":\"$CMD\",\"nice_priority\":$NICE"
+      [ -n "$NAME" ] && JSON="$JSON,\"name\":\"$NAME\""
+      [ -n "$TIMEOUT" ] && JSON="$JSON,\"max_duration_sec\":$TIMEOUT"
+      [ -n "$WORKDIR" ] && JSON="$JSON,\"work_dir\":\"$WORKDIR\""
+      [ -n "$OUTDIR" ] && JSON="$JSON,\"output_dir\":\"$OUTDIR\""
+      [ -n "$OUT_TIMEOUT" ] && JSON="$JSON,\"output_timeout_sec\":$OUT_TIMEOUT"
+      JSON="$JSON}"
+      curl -s -X POST "http://127.0.0.1:${API_PORT}/api/sandbox/start" \
+        -H "Content-Type: application/json" -d "$JSON" | python3 -c "
+import sys,json
+r=json.loads(sys.stdin.read())
+if r.get('ok'):
+    print(f'沙箱已启动: id={r.get(\"id\")}, pid={r.get(\"pid\")}')
+else:
+    print(f'启动失败: {r.get(\"message\",\"unknown\")}')
+" 2>/dev/null
+      ;;
+    stop)
+      if ! _is_running; then echo "SOTAgent 未运行"; exit 1; fi
+      local SID="$2"
+      if [ -z "$SID" ]; then echo "用法: sotctl sandbox stop <sandbox-id>"; exit 1; fi
+      curl -s -X POST "http://127.0.0.1:${API_PORT}/api/sandbox/stop/${SID}" | python3 -c "
+import sys,json
+r=json.loads(sys.stdin.read())
+print(r.get('message','完成'))
+" 2>/dev/null
+      ;;
+    *)
+      echo "未知沙箱命令: $sub"
+      echo "用法: sotctl sandbox [status|start|stop]"
+      exit 1
+      ;;
+  esac
+}
+
+cmd_help() {
+  echo "sotctl — SOTAgent 统一管理工具"
+  echo ""
+  echo "用法: sotctl <命令>"
+  echo ""
+  echo "命令:"
+  echo "  start               启动 SOTAgent 守护进程"
+  echo "  stop                停止 SOTAgent 守护进程（launchd 卸载）"
+  echo "  restart             重启 SOTAgent 守护进程"
+  echo "  status              查看状态（守护进程 + 所有托管服务）"
+  echo "  sandbox status      查看所有沙箱进程"
+  echo "  sandbox start CMD   启动沙箱进程 [--name --timeout --nice --workdir]"
+  echo "  sandbox stop ID     停止沙箱进程"
+  echo "  logs                查看最近日志"
+  echo "  logs -f             实时跟踪日志"
+  echo "  help                显示此帮助"
+}
+
+case "${1:-help}" in
+  start)    cmd_start ;;
+  stop)     cmd_stop ;;
+  restart)  cmd_restart ;;
+  status)   cmd_status ;;
+  sandbox)  shift; cmd_sandbox "$@" ;;
+  logs)     cmd_logs "$2" ;;
+  help|-h|--help)  cmd_help ;;
+  *)
+    echo "未知命令: $1"
+    cmd_help
+    exit 1
+    ;;
+esac

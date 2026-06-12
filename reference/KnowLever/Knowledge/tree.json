@@ -1,0 +1,87 @@
+{
+  "schema_version": "1.0",
+  "project": "SOTAgent",
+  "generated_at": "2026-05-02T17:44:27.900Z",
+  "key_design": [
+    {
+      "id": "readme",
+      "title": "reference/",
+      "type": "concept",
+      "summary": "",
+      "source_page": "readme.md"
+    },
+    {
+      "id": "src-20260502-readme",
+      "title": "项目参考资料的目录组织规范",
+      "type": "source",
+      "summary": "reference 目录用于集中存放只读的参考项目、SOTA 对标材料和外部技术文档，与项目源代码分离管理。其中可包含开源项目、论文、技术博客摘录等内容；对于大文件建议使用 Git LFS 存储或仅保留外部链接以节省仓库空间。",
+      "source_page": "sources/src-20260502-readme.md"
+    },
+    {
+      "id": "entity-reference-directory",
+      "title": "reference 目录",
+      "type": "entity",
+      "summary": "项目仓库中用于集中存放只读参考资料的专用目录，可收纳开源项目、论文、技术博客等外部学习材料，与源代码分离管理。",
+      "source_page": "entities/entity-reference-directory.md"
+    },
+    {
+      "id": "concept-git-lfs",
+      "title": "Git LFS",
+      "type": "concept",
+      "summary": "Git LFS 是 Git 的扩展工具，通过将大文件内容存储在远程服务器上，只在仓库中保留指针文件，从而高效管理大型二进制文件，避免仓库体积膨胀。",
+      "source_page": "concepts/concept-git-lfs.md"
+    },
+    {
+      "id": "concept-reference-mgmt",
+      "title": "参考资料管理规范",
+      "type": "concept",
+      "summary": "通过独立目录隔离只读参考资料与源代码的项目组织方式，以提升仓库可维护性和团队协作效率。",
+      "source_page": "concepts/concept-reference-mgmt.md"
+    }
+  ],
+  "overall_design": [
+    {
+      "id": "overall-concept",
+      "title": "总体设计/concept",
+      "summary": "由 3 个关键设计节点抽象而来",
+      "based_on": [
+        "readme",
+        "concept-git-lfs",
+        "concept-reference-mgmt"
+      ]
+    },
+    {
+      "id": "overall-source",
+      "title": "总体设计/source",
+      "summary": "由 1 个关键设计节点抽象而来",
+      "based_on": [
+        "src-20260502-readme"
+      ]
+    },
+    {
+      "id": "overall-entity",
+      "title": "总体设计/entity",
+      "summary": "由 1 个关键设计节点抽象而来",
+      "based_on": [
+        "entity-reference-directory"
+      ]
+    }
+  ],
+  "general_logic": [
+    {
+      "id": "general-logic-core",
+      "title": "这类项目的一般逻辑",
+      "summary": "从多个总体设计层抽象出的通用逻辑骨架",
+      "based_on": [
+        "overall-concept",
+        "overall-source",
+        "overall-entity"
+      ],
+      "principles": [
+        "从 source/concept/entity 页面抽取可复用结构",
+        "按问题-方法-约束组织知识层次",
+        "优先沉淀可被 Agent 复用的设计规则"
+      ]
+    }
+  ]
+}
