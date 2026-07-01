@@ -28,14 +28,14 @@
 ## digist 特别说明（2026-06-12）
 
 - **canonical 端口 3800**（`ports.digist_api` + `gateway.routes[digist].target_port`）
-- digist-api 须与 **Node 22+** 及匹配的 `better-sqlite3` 二进制一致
-- 推荐安装：`bash ~/Polarisor/digist/scripts/install-api-launchd.sh`
+- digist-api 须与 **Node 22+** 及匹配的 `better-sqlite3` 二进制一致（`bash bin/digist` / `Start/start.sh` 自动对齐）
+- 推荐启动/重启：`bash ~/Polarisor/digist/Start/restart.sh` 或 PolarProcess `POST /api/services/digist/restart`
 - PolarPort 注册名：`digist-api`（PolarPort `:11050/api/list` 可查）
 
 ### 常见错误
 
 | 症状 | 原因 | 处理 |
 | --- | --- | --- |
-| `/gw/digist/...` 返回空 items 且无 `search` 字段 | 旧 digist-api 忽略 `q` 或未重启 | 拉最新 digist + 重启 `com.digist.api` |
-| gateway health `db degraded` / sqlite NODE_MODULE_VERSION | Node 版本与 better-sqlite3 不匹配 | `nvm use 22 && npm rebuild better-sqlite3` 后重启 |
-| 直连非 3800 端口 | 手工启动未设 `PORT=3800` | 用 launchd plist 或 `PORT=3800 npm run digist-api` |
+| `/gw/digist/...` 返回空 items 且无 `search` 字段 | 旧 digist-api 忽略 `q` 或未重启 | 拉最新 digist + PolarProcess 重启 `digist` |
+| gateway health `db degraded` / sqlite NODE_MODULE_VERSION | Node 版本与 better-sqlite3 不匹配 | `bash bin/digist ...` 或 `Start/restart.sh`（自动 Node 22 + rebuild） |
+| 直连非 3800 端口 | 手工启动未走 PolarPort | 用 `Start/start.sh` 或 PolarProcess 重启 |

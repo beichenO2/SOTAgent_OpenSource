@@ -29,27 +29,29 @@ echo "=== Registering services with SOTAgent ==="
 register '{
   "id": "privportal-backend",
   "name": "PolarPrivate Backend",
-  "command": "PRIVPORTAL_API_PORT=12790 PRIVPORTAL_API_HOST=127.0.0.1 /opt/homebrew/Caskroom/miniforge/base/bin/privportal start",
+  "command": "PRIVPORTAL_API_PORT=12790 PRIVPORTAL_API_HOST=127.0.0.1 .venv/bin/privportal start",
   "work_dir": "~/Polarisor/PolarPrivate/backend",
   "port": 12790,
   "device_id": "'"$DEVICE"'",
   "auto_start": true,
   "restart_on_failure": true,
   "max_restarts": 10,
-  "health_check_url": "http://127.0.0.1:12790/health"
+  "health_check_url": "http://127.0.0.1:12790/health",
+  "start_script_dir": "~/Polarisor/PolarPrivate/backend/Start"
 }'
 
 register '{
   "id": "privportal-frontend",
   "name": "PolarPrivate Frontend",
-  "command": "/opt/homebrew/bin/node node_modules/.bin/vite preview --host 127.0.0.1 --port 5170 --strictPort",
+  "command": "node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 5170 --strictPort",
   "work_dir": "~/Polarisor/PolarPrivate/frontend",
   "port": 5170,
   "device_id": "'"$DEVICE"'",
   "auto_start": true,
   "restart_on_failure": true,
   "max_restarts": 10,
-  "health_check_url": "http://127.0.0.1:5170"
+  "health_check_url": "http://127.0.0.1:5170",
+  "start_script_dir": "-"
 }'
 
 # ─── PolarClaw (龙虾) ────────────────────────────────────
@@ -85,26 +87,29 @@ register '{
 register '{
   "id": "polarclock-backend",
   "name": "PolarClock Backend",
-  "command": "/opt/homebrew/Caskroom/miniforge/base/bin/python3 main.py",
+  "command": "/opt/homebrew/Caskroom/miniforge/base/bin/python3 main.py --port 15550",
   "work_dir": "~/Polarisor/Clock/backend",
   "port": 15550,
   "device_id": "'"$DEVICE"'",
-  "auto_start": true,
+  "auto_start": false,
   "restart_on_failure": true,
-  "max_restarts": 10
+  "max_restarts": 10,
+  "health_check_url": "http://127.0.0.1:15550/api/health",
+  "start_script_dir": "~/Polarisor/Clock/backend/Start"
 }'
 
 register '{
   "id": "polarclock-frontend",
-  "name": "PolarClock Frontend",
-  "command": "/opt/homebrew/bin/node node_modules/.bin/vite preview --port 4555 --host 0.0.0.0 --strictPort",
+  "name": "PolarClock Frontend (deprecated — use :15550 only)",
+  "command": "node node_modules/.bin/vite preview --port 4555 --host 0.0.0.0 --strictPort",
   "work_dir": "~/Polarisor/Clock/frontend",
   "port": 4555,
   "device_id": "'"$DEVICE"'",
-  "auto_start": true,
-  "restart_on_failure": true,
-  "max_restarts": 10,
-  "health_check_url": "http://127.0.0.1:4555"
+  "auto_start": false,
+  "restart_on_failure": false,
+  "max_restarts": 0,
+  "health_check_url": "http://127.0.0.1:4555/clock/",
+  "start_script_dir": "~/Polarisor/Clock/frontend/Start"
 }'
 
 # ─── GSD2 Hub ─────────────────────────────────────────
@@ -155,31 +160,47 @@ register '{
 register '{
   "id": "knowlever-rag",
   "name": "KnowLever RAG API",
-  "command": "KNOWLEVER_PORT=8500 /opt/homebrew/Caskroom/miniforge/base/bin/python -m rag.api_server",
+  "command": "bash Start/start-rag.sh",
   "work_dir": "~/Polarisor/KnowLever",
-  "port": 8500,
+  "port": 18080,
   "device_id": "'"$DEVICE"'",
   "auto_start": true,
   "restart_on_failure": true,
   "max_restarts": 10,
-  "health_check_url": "http://127.0.0.1:8500/docs"
+  "health_check_url": "http://127.0.0.1:18080/api/health",
+  "start_script_dir": "-"
 }'
 
-# ─── DiGist API (standalone HTTP, port 4880, PolarPort SSOT) ─
+register '{
+  "id": "knowlever-wiki",
+  "name": "KnowLever Wiki Server",
+  "command": "bash Start/start-wiki.sh",
+  "work_dir": "~/Polarisor/KnowLever",
+  "port": 18085,
+  "device_id": "'"$DEVICE"'",
+  "auto_start": true,
+  "restart_on_failure": true,
+  "max_restarts": 10,
+  "health_check_url": "http://127.0.0.1:18085",
+  "start_script_dir": "-"
+}'
+
+# ─── DiGist API (HTTP server, port 3800, PolarPort SSOT) ─
 register '{
   "id": "digist",
   "name": "DiGist API",
   "command": "npm run digist-api",
   "work_dir": "~/Polarisor/digist",
-  "port": 4880,
+  "port": 3800,
   "device_id": "'"$DEVICE"'",
   "auto_start": true,
   "restart_on_failure": true,
   "max_restarts": 10,
-  "health_check_url": "http://127.0.0.1:4880/health"
+  "health_check_url": "http://127.0.0.1:3800/api/health",
+  "start_script_dir": "~/Polarisor/digist/Start"
 }'
 
-# ─── DiGist Engine (scheduler + evolution + reports) ─
+# ─── DiGist Engine (scheduler + evolution; command mode, NOT Start/start.sh) ─
 register '{
   "id": "digist-engine",
   "name": "DiGist Engine",
@@ -188,7 +209,8 @@ register '{
   "device_id": "'"$DEVICE"'",
   "auto_start": true,
   "restart_on_failure": true,
-  "max_restarts": 5
+  "max_restarts": 5,
+  "start_script_dir": "-"
 }'
 
 # ─── SOTAgent Console ─────────────────────────────────
