@@ -56,7 +56,7 @@
 | SOTAgent Web API | 4801 | ✅ 运行中 |
 | SOTAgent Console | 4880 | ✅ 运行中 |
 | PolarPrivate 后端 | 12790 | ✅ 运行中 |
-| PolarPrivate 前端 | 5170 | ✅ 运行中 |
+| PolarPrivate 前端 | 12795 | ✅ 运行中 |
 | LM Studio | 1234 | ✅ 运行中 |
 | Ollama | 11434 | ✅ 运行中 |
 | PolarClaw | 18790 | ✅ 运行中 |

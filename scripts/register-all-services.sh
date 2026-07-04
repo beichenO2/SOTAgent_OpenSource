@@ -43,14 +43,14 @@ register '{
 register '{
   "id": "privportal-frontend",
   "name": "PolarPrivate Frontend",
-  "command": "node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 5170 --strictPort",
+  "command": "node node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 12795 --strictPort",
   "work_dir": "~/Polarisor/PolarPrivate/frontend",
-  "port": 5170,
+  "port": 12795,
   "device_id": "'"$DEVICE"'",
   "auto_start": true,
   "restart_on_failure": true,
   "max_restarts": 10,
-  "health_check_url": "http://127.0.0.1:5170",
+  "health_check_url": "http://127.0.0.1:12795",
   "start_script_dir": "-"
 }'
 
