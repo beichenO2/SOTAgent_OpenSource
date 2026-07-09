@@ -115,7 +115,6 @@
       ".planning/**/*.tmp"
     ],
     "project_whitelist": [
-      "AutoOffice",
       "digist",
       "macbook",
       "SOTAgent",
@@ -123,6 +122,7 @@
       "PolarisVault",
       "PolarPrivate"
     ],
+    "_whitelist_note": "AutoOffice removed 2026-07-09: its origin is the sanitized open-source mirror (unrelated history); peer-sync pull --rebase wedged the repo in a month-long detached rebase. Publish via opensource-mirror-sync instead.",
     "rsync_large_files": {
       "enabled": true,
       "ssh_port": 22,
@@ -211,115 +211,6 @@
     "log_file": "~/.sotagent/logs/ssot-events.jsonl",
     "polling_interval_sec": 60
   },
-  "built_in_services": [
-    {
-      "id": "autooffice",
-      "name": "AutoOffice",
-      "command": "node dist/cli.js serve -p 3900",
-      "work_dir": "~/Polarisor/AutoOffice",
-      "port": 3900,
-      "health_check_url": "http://127.0.0.1:3900/health",
-      "auto_start": true,
-      "restart_on_failure": true,
-      "max_restarts": 30
-    },
-    {
-      "id": "polarclaw",
-      "name": "PolarClaw Agent",
-      "command": "npm start",
-      "work_dir": "~/Polarisor/PolarClaw",
-      "auto_start": true,
-      "restart_on_failure": true,
-      "max_restarts": 30
-    },
-    {
-      "id": "polarui",
-      "name": "PolarUI (Preview)",
-      "command": "npm run preview -- --port 5170 --host 127.0.0.1",
-      "work_dir": "~/Polarisor/PolarUI",
-      "port": 5170,
-      "health_check_url": "http://127.0.0.1:5170/",
-      "auto_start": true,
-      "restart_on_failure": true,
-      "max_restarts": 30
-    },
-    {
-      "id": "polarcop-web-dev",
-      "name": "PolarCopilot Web (Dev)",
-      "command": "HUB_PORT=3850 npm run dev",
-      "work_dir": "~/Polarisor/PolarCopilot/web",
-      "port": 5180,
-      "health_check_url": "http://127.0.0.1:5180/",
-      "auto_start": false,
-      "restart_on_failure": true,
-      "max_restarts": 30
-    },
-    {
-      "id": "digist-daily-digest",
-      "name": "DiGist Daily Digest",
-      "command": "bash scripts/daily-digest.sh",
-      "work_dir": "~/Polarisor/digist",
-      "auto_start": false,
-      "restart_on_failure": false,
-      "max_restarts": 0,
-      "cron_schedule": "0 6,8,11,14,17,20,23 * * *"
-    },
-    {
-      "id": "knowlever-wiki",
-      "name": "KnowLever Wiki Server",
-      "command": "BASE_PATH=/knowlever-wiki node wiki-engine/serve-multi.js",
-      "work_dir": "~/Polarisor/KnowLever",
-      "port": 18085,
-      "health_check_url": "http://127.0.0.1:18085/",
-      "auto_start": true,
-      "restart_on_failure": true,
-      "max_restarts": 30
-    },
-    {
-      "id": "knowlever-rag",
-      "name": "KnowLever RAG API",
-      "command": ".venv/bin/python3 -m rag.api_server",
-      "work_dir": "~/Polarisor/KnowLever",
-      "port": 18080,
-      "health_check_url": "http://127.0.0.1:18080/api/health",
-      "auto_start": true,
-      "restart_on_failure": true,
-      "max_restarts": 30,
-      "env": {
-        "KNOWLEVER_PORT": "18080"
-      }
-    },
-    {
-      "id": "polar-memory",
-      "name": "PolarMemory",
-      "command": "npx tsx src/api_server.ts",
-      "work_dir": "~/Polarisor/PolarMemory",
-      "port": 3100,
-      "health_check_url": "http://127.0.0.1:3100/health",
-      "auto_start": true,
-      "restart_on_failure": true,
-      "max_restarts": 3
-    },
-    {
-      "id": "polarpilot",
-      "name": "PolarPilot",
-      "command": "node dist/cli.mjs",
-      "work_dir": "~/Polarisor/PolarPilot",
-      "port": 4900,
-      "health_check_url": "http://127.0.0.1:4900/api/health",
-      "auto_start": true,
-      "restart_on_failure": true,
-      "max_restarts": 30
-    },
-    {
-      "id": "ssot-audit",
-      "name": "SSoT 定时审计",
-      "command": "bash scripts/run-ssot-audit.sh",
-      "work_dir": "~/Polarisor/Agent_core",
-      "auto_start": false,
-      "restart_on_failure": false,
-      "max_restarts": 0,
-      "cron_schedule": "0 */4 * * *"
-    }
-  ]
+  "_built_in_services_note": "Emptied 2026-07-09: PolarProcess (:11055) is the sole service registry/lifecycle authority (Agent_core P27). Every entry here was re-registered on each SOTAgent boot, overwriting PolarProcess records (dual-manager races, e.g. :3900). All 9 former entries verified present in PolarProcess before removal. Register new services via PolarProcess /api/services/register or SOTAgent/scripts/register-all-services.sh.",
+  "built_in_services": []
 }

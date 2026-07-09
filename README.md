@@ -1,8 +1,10 @@
 # SOTAgent
 
-> **Polarisor 生态的状态中枢（Single Source of Truth Agent）** — 在 Mac 本地多项目、多设备、多 Agent 并行开发时，统一回答「哪些服务在跑、端口谁占用、API 是否健康、SSoT 是否漂移」。
+> **Polarisor 生态的观测面板（Single Source of Truth Agent）** — 在 Mac 本地多项目、多设备、多 Agent 并行开发时，统一回答「哪些服务在跑、端口谁占用、API 是否健康、SSoT 是否漂移」。
 
-Polarisor 有 20+ 微服务各自监听端口、各自维护 `polaris.json`，缺少一个可观测、可自愈的运行时根节点。SOTAgent 填补这一空白：它是 SSoT Dashboard 的数据后端，也是全生态服务发现、进程守护、Git 同步与 API 网关的统一入口。
+Polarisor 有 20+ 微服务各自监听端口、各自维护 `polaris.json`。SOTAgent 是 SSoT Dashboard 的数据后端 + Vue console 前端，外加跨设备 Git 同步（PeerSync）、SSoT 变更监控与 `/gw/*` API 网关。
+
+> **职责边界（2026-07 架构决策）**：端口分配的唯一权威是 [PolarPort](https://github.com/beichenO2/PolarPort)（:11050），进程生命周期的唯一权威是 [PolarProcess](https://github.com/beichenO2/PolarProcess)（:11055）。SOTAgent 的 `/api/services/*`、`/api/ports/*` 是转发到二者的 **facade 透传**（`src/facade/`），仅为历史调用方保留——新代码应直连 PolarPort / PolarProcess，SOTAgent 只负责**让用户看**。
 
 **GitHub:** [beichenO2/SOTAgent](https://github.com/beichenO2/SOTAgent)
 
@@ -35,7 +37,7 @@ cd console && npm install && cd ..
 
 ### 为什么用 launchd + 原生进程，而不是 Docker？
 
-Polarisor 是本地优先的 macOS 开发环境。SOTAgent 直接 `spawn` 子进程并做 HTTP 健康探针，配合 launchd 常驻 3 个守护单元（sentinel / resource-monitor / web），内存占用远低于容器运行时，且与 macOS 原生工具链（`lsof`、launchd）无缝集成。
+Polarisor 是本地优先的 macOS 开发环境。launchd 常驻 3 个守护单元（sentinel / resource-monitor / web），内存占用远低于容器运行时，且与 macOS 原生工具链（`lsof`、launchd）无缝集成。（子进程 spawn 与健康探针已随 ProcessManager 迁至 PolarProcess。）
 
 ### 为什么用按需拉取缓存，而不是后台定时轮询？
 
@@ -55,8 +57,8 @@ MacBook Pro 与 Mac Studio 已通过 Tailscale VPN 互联。PeerSync 每 **30s**
 
 | 维度 | 数据 |
 |------|------|
-| **托管服务** | 10 个内建服务（AutoOffice、PolarClaw、KnowLever RAG/Wiki、PolarMemory、PolarPilot 等） |
-| **端口治理** | 27 个预注册端口 + 心跳自愈（released/stale → active 自动复活） |
+| **服务视图** | 10 个内建服务（AutoOffice、PolarClaw、KnowLever RAG/Wiki、PolarMemory、PolarPilot 等；操作经 facade 转发 PolarProcess） |
+| **端口视图** | 27 个预注册端口展示（分配权威在 PolarPort，facade 桥接 `/api/ports/*`） |
 | **API 网关** | 8 条 `/gw/*` 路由（PolarPrivate、**DiGist :3800**、AutoOffice、KnowLever 等）— 详见 [`docs/gateway-routes.md`](docs/gateway-routes.md) |
 | **能力注册** | 11 个 HTTP capability，一行 `call()` 跨服务调用 |
 | **SSoT 监控** | 实时监听 3 类文件（`polaris.json` / `PolarSoul.md` / `capabilities.json`），500ms 防抖 + 60s 兜底轮询 |
