@@ -213,6 +213,35 @@ register '{
   "start_script_dir": "~/Polarisor/tqsdk/tqsdk-gateway/Start"
 }'
 
+# ─── PolarFlow ────────────────────────────────────────
+register '{
+  "id": "polarflow-api",
+  "name": "PolarFlow API",
+  "command": "env POLARFLOW_EDITOR_ROOT=examples npm run server",
+  "work_dir": "~/Polarisor/PolarFlow",
+  "port": 8120,
+  "device_id": "'"$DEVICE"'",
+  "auto_start": true,
+  "restart_on_failure": true,
+  "max_restarts": 10,
+  "health_check_url": "http://127.0.0.1:8120/api/llm/health",
+  "start_script_dir": "-"
+}'
+
+register '{
+  "id": "polarflow-editor",
+  "name": "PolarFlow Editor",
+  "command": "npx vite --host 127.0.0.1 --port 8125 --strictPort",
+  "work_dir": "~/Polarisor/PolarFlow/editor",
+  "port": 8125,
+  "device_id": "'"$DEVICE"'",
+  "auto_start": true,
+  "restart_on_failure": true,
+  "max_restarts": 10,
+  "health_check_url": "http://127.0.0.1:8125",
+  "start_script_dir": "-"
+}'
+
 # ─── PolarTrade ───────────────────────────────────────
 register '{
   "id": "polartrade-api",
