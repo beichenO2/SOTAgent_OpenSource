@@ -32,7 +32,12 @@ function loadPorts(): IPortsConfig {
 
 const _ports = loadPorts();
 
-export const SOTAGENT_API_PORT = _ports.sotagent_api;
+const apiPortOverride = process.env.SOTAGENT_API_PORT ?? process.env.PORT;
+const parsedApiPort = apiPortOverride ? Number(apiPortOverride) : NaN;
+
+export const SOTAGENT_API_PORT = Number.isInteger(parsedApiPort) && parsedApiPort > 0
+  ? parsedApiPort
+  : _ports.sotagent_api;
 export const SOTAGENT_CONSOLE_PORT = _ports.sotagent_console;
 export const POLAR_PRIVATE_PORT = _ports.polar_private;
 /** Polarisor registry — AutoOffice HTTP API (see REQUIREMENTS R2). */

@@ -586,6 +586,42 @@
         }
       ],
       "blockers": []
+    },
+    {
+      "id": "R6",
+      "need": "运行时端口与进程统一治理",
+      "approach": "将 SOTAgent API 与 Console 拆分为两个前台服务，沿用 sotagent 与 sotagent-console 身份，端口仅由 PolarPort 分配，生命周期仅由 PolarProcess 管理；live PID 在迁移代码阶段保持不变",
+      "features": [
+        {
+          "name": "runtime_governance",
+          "status": "done",
+          "tech": [
+            "PolarPort",
+            "PolarProcess",
+            "Bash",
+            "Node.js 22"
+          ],
+          "behavior": [
+            "sotagent API 通过前台 launcher 申请 preferred port 4800",
+            "sotagent-console 通过前台 launcher 申请 preferred port 4880",
+            "旧一键脚本不再后台启动、写 PID 或直接发送信号",
+            "API 绑定和 Console 代理目标从 PolarPort 注入的环境变量读取",
+            "运行态切换仅操作 sotagent 与 sotagent-console，并退役旧 com.sotagent.web launchd 管理"
+          ],
+          "test_status": "passed",
+          "evidence": [
+            "2026-07-16: baseline audit drift=1 (missing Start launcher); API live on 4800 pid=3462 under com.sotagent.web launchd KeepAlive and absent from PolarProcess; Console live on 4880 pid=17137 under PolarProcess; neither has an active PolarPort owner",
+            "2026-07-16: baseline npm test 91/102 with 11 pre-existing failures (6 missing Start scripts, 2 legacy heartbeat, 2 sandbox, 1 clean-worktree data directory); root TypeScript build passed; Console build has one pre-existing unused computed import error",
+            "2026-07-16: runtime contract, shell syntax, Start self-host tests 6/6, root TypeScript build and project governance audit passed; full suite improved to 98/102 with four non-runtime failures remaining",
+            "2026-07-16: Console build still reports the pre-existing unused computed import in ServicesView.vue; migration files introduce no Console compiler error",
+            "2026-07-16: API handoff 的首次 adopt 未命中并由 launchd 拉起替代 PID；随后仅对 sotagent 执行精确 PolarProcess start，最终监听 PID 78575 被验证并由 PolarProcess 管理，PolarPort active owner 为 sotagent/SOTAgent:4800",
+            "2026-07-16: legacy com.sotagent.web launchd job 已卸载、禁用且 plist 删除；API health 持续通过",
+            "2026-07-16: sotagent-console 通过精确 PolarProcess restart 切换为 PID 87073，PolarPort active owner 为 sotagent-console/SOTAgent:4880；切换期间 API PID 78575 未变",
+            "2026-07-16: final API/Console health、verified PID、双 active owner 与项目 governance audit 全部通过"
+          ]
+        }
+      ],
+      "blockers": []
     }
   ],
   "tech": {
@@ -617,10 +653,35 @@
     ]
   },
   "service_management": {
-    "install_command": "npm ci",
-    "start_command": "bash Start/start.sh",
-    "restart_command": "bash Start/restart.sh",
-    "health_endpoint": "http://127.0.0.1:4800/api/status"
+    "install_command": "npm ci && npm ci --prefix console && npm run build --prefix console",
+    "start_command": "bash Start/api.sh",
+    "restart_command": "bash Start/api.sh",
+    "health_endpoint": "http://127.0.0.1:4800/api/health",
+    "preferred_port": 4800,
+    "service_id": "sotagent",
+    "auto_start": true,
+    "process_mode": "foreground_command",
+    "services": [
+      {
+        "service_id": "sotagent",
+        "name": "SOTAgent API",
+        "start_command": "bash Start/api.sh",
+        "health_endpoint": "http://127.0.0.1:4800/api/health",
+        "preferred_port": 4800,
+        "auto_start": true,
+        "process_mode": "foreground_command"
+      },
+      {
+        "service_id": "sotagent-console",
+        "name": "SOTAgent Console",
+        "start_command": "bash Start/console.sh",
+        "health_endpoint": "http://127.0.0.1:4880/",
+        "preferred_port": 4880,
+        "auto_start": true,
+        "process_mode": "foreground_command"
+      }
+    ],
+    "notes": "SOTAgent compatibility APIs are observational facades; new runtime control uses PolarPort + PolarProcess only"
   },
   "depends_on": [],
   "depended_by": [
@@ -634,7 +695,7 @@
     "PolarPrivate"
   ],
   "contacts": {
-    "last_updated": "2026-05-10T00:30+08:00",
-    "updated_by": "solo-web-yolo"
+    "last_updated": "2026-07-16",
+    "updated_by": "codex-runtime-governance"
   }
 }

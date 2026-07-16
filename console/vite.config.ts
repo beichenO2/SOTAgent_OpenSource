@@ -7,8 +7,8 @@ import path from 'node:path'
 
 const configPath = path.resolve(__dirname, '..', 'config.json')
 const config = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-const apiPort = config.ports?.sotagent_api ?? 4800
-const consolePort = config.ports?.sotagent_console ?? 4805
+const apiPort = Number(process.env.SOTAGENT_API_PORT ?? config.ports?.sotagent_api ?? 4800)
+const consolePort = Number(process.env.PORT ?? config.ports?.sotagent_console ?? 4880)
 
 export default defineConfig({
   plugins: [vue(), tailwindcss()],
