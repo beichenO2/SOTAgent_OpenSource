@@ -2349,8 +2349,12 @@ const httpServer = serve({ fetch: app.fetch, port: PORT, hostname: BIND_HOST }, 
   // 启动跨设备感知
   peerSync.start();
 
-  // 启动 KnowLever 监控
-  startKnowLeverMonitor();
+  // KnowLever v1 monitor（compile.js 管道）默认暂停；紧急重开：SOTAGENT_KNOWLEVER_MONITOR=on
+  if ((process.env.SOTAGENT_KNOWLEVER_MONITOR ?? '').trim().toLowerCase() === 'on') {
+    startKnowLeverMonitor();
+  } else {
+    console.log('[web] KnowLever v1 monitor paused (set SOTAGENT_KNOWLEVER_MONITOR=on to enable)');
+  }
 
   // 启动 SSoT 实时文档变更检测
   startSSoTWatcher();

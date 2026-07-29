@@ -1031,11 +1031,16 @@ export class SOTAgentDB {
     return null;
   }
 
-  /** 检查系统端口是否正在被使用（lsof） */
+  /** 检查系统端口是否正在被使用（PolarPort TCP probe，替代 lsof） */
   private isPortInUse(port: number): boolean {
+    const polarPortUrl = process.env.POLARPORT_URL ?? 'http://127.0.0.1:11050';
     try {
-      const result = execSyncFn(`lsof -iTCP:${port} -sTCP:LISTEN -t 2>/dev/null`, { encoding: 'utf-8' });
-      return result.trim().length > 0;
+      const result = execSyncFn(
+        `curl -fsS --max-time 2 "${polarPortUrl}/api/ports/${port}/status"`,
+        { encoding: 'utf-8' },
+      );
+      const data = JSON.parse(result) as { tcp_in_use?: boolean };
+      return data.tcp_in_use === true;
     } catch {
       return false;
     }

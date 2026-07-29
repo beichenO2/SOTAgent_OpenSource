@@ -66,10 +66,87 @@ interface ListeningPort {
   command?: string;
 }
 
+const POLARPROCESS_URL = process.env.POLARPROCESS_URL ?? 'http://127.0.0.1:11055';
+
+interface PolarProcessServiceRow {
+  id: string;
+  name: string;
+  status: string;
+  pid: number | null;
+  port: number | null;
+}
+
+interface PolarPortDiagnostic {
+  ok?: boolean;
+  port: number;
+  free?: boolean;
+  occupant?: { pid: number; command: string; alive?: boolean } | null;
+}
+
+/**
+ * 通过 PolarProcess/PolarPort 权威 API 发现监听端口（治理安全路径）。
+ * 返回 null 表示权威不可达，调用方应降级。
+ */
+async function discoverListeningPortsFromAuthorities(): Promise<ListeningPort[] | null> {
+  try {
+    const health = await fetch(`${POLARPROCESS_URL}/api/health`, { signal: AbortSignal.timeout(2000) });
+    if (!health.ok) return null;
+
+    const servicesResp = await fetch(`${POLARPROCESS_URL}/api/services`, { signal: AbortSignal.timeout(8000) });
+    if (!servicesResp.ok) return null;
+    const services = await servicesResp.json() as PolarProcessServiceRow[];
+
+    const results: ListeningPort[] = [];
+    const seen = new Set<number>();
+
+    for (const svc of services) {
+      if (!svc.port) continue;
+      const diagResp = await fetch(
+        `${POLARPROCESS_URL}/api/diagnostics/ports/${svc.port}`,
+        { signal: AbortSignal.timeout(3000) },
+      );
+      if (!diagResp.ok) continue;
+      const diag = await diagResp.json() as PolarPortDiagnostic;
+      const occupant = diag.occupant;
+      if (!occupant?.pid || seen.has(svc.port)) continue;
+      seen.add(svc.port);
+
+      let cwd: string | undefined;
+      let command = occupant.command;
+      try {
+        const probeResp = await fetch(
+          `${POLARPROCESS_URL}/api/diagnostics/process/${occupant.pid}`,
+          { signal: AbortSignal.timeout(2000) },
+        );
+        if (probeResp.ok) {
+          const probe = await probeResp.json() as { command?: string; cwd?: string };
+          command = probe.command ?? command;
+          cwd = probe.cwd;
+        }
+      } catch { /* best-effort */ }
+
+      results.push({
+        port: svc.port,
+        process: svc.name,
+        pid: occupant.pid,
+        cwd,
+        command,
+      });
+    }
+
+    return results;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * 扫描系统所有监听端口并返回结构化数据
  */
 async function discoverListeningPorts(): Promise<ListeningPort[]> {
+  const fromAuthorities = await discoverListeningPortsFromAuthorities();
+  if (fromAuthorities) return fromAuthorities;
+
   try {
     const { stdout } = await execAsync(
       "lsof -iTCP -sTCP:LISTEN -P -n -F pcn 2>/dev/null",

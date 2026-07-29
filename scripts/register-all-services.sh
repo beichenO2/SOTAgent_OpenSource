@@ -112,34 +112,11 @@ register '{
   "start_script_dir": "-"
 }'
 
-# ─── KnowLever ────────────────────────────────────────
-register '{
-  "id": "knowlever-rag",
-  "name": "KnowLever RAG API",
-  "command": "bash Start/start-rag.sh",
-  "work_dir": "~/Polarisor/KnowLever",
-  "port": 18080,
-  "device_id": "'"$DEVICE"'",
-  "auto_start": true,
-  "restart_on_failure": true,
-  "max_restarts": 10,
-  "health_check_url": "http://127.0.0.1:18080/api/health",
-  "start_script_dir": "-"
-}'
-
-register '{
-  "id": "knowlever-wiki",
-  "name": "KnowLever Wiki Server",
-  "command": "bash Start/start-wiki.sh",
-  "work_dir": "~/Polarisor/KnowLever",
-  "port": 18085,
-  "device_id": "'"$DEVICE"'",
-  "auto_start": true,
-  "restart_on_failure": true,
-  "max_restarts": 10,
-  "health_check_url": "http://127.0.0.1:18085",
-  "start_script_dir": "-"
-}'
+# ─── KnowLever (ARCHIVED / v1 paused) ─────────────────
+# Start/start-rag.sh、start-wiki.sh 与 v1 RAG(18080)/wiki(18085) 已归档。
+# 禁止重新 register 并 auto_start。僵尸注册若已存在可保留但勿复活。
+# 见 KnowLever/docs/pause/v1-consumer-shutdown-checklist.md
+# SKIPPED: knowlever-rag / knowlever-wiki registration
 
 # ─── DiGist API ───────────────────────────────────────
 register '{
