@@ -27,7 +27,7 @@ export interface IAssetPattern {
 const PATTERNS: IAssetPattern[] = [
   // Copilot Skills（.cursor/skills/ — IDE 层技能）
   { glob: '.cursor/skills/*/SKILL.md', type: 'skill', idTemplate: 'skill:{dirname}', defaultSyncLevel: 'suggest' },
-  // Claw Skills（skills/ — PolarClaw 自学习生成的运行时技能）
+  // 运行时 Skills（skills/ — 项目自带的运行时技能目录）
   { glob: 'skills/*/SKILL.md', type: 'skill', idTemplate: 'claw-skill:{dirname}', defaultSyncLevel: 'suggest' },
   { glob: '.cursor/rules/*.mdc', type: 'config', idTemplate: 'rule:{filename}', defaultSyncLevel: 'auto' },
   { glob: '.cursor/rules/*.md', type: 'config', idTemplate: 'rule:{filename}', defaultSyncLevel: 'auto' },
