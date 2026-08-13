@@ -812,7 +812,7 @@ function scanArchitecture(): { nodes: IArchNode[]; edges: IArchEdge[] } {
 
   const SERVICE_PROJECT_MAP: Record<string, string> = {
     'polarclock': 'Clock', 'privportal': 'PolarPrivate', 'polarcop': 'PolarCopilot',
-    'digist': 'digist', 'polarflow': 'PolarFlow', 'tqsdk': 'tqsdk',
+    'digist': 'digist', 'polarclaw': 'PolarClaw', 'tqsdk': 'tqsdk',
     'autooffice': 'AutoOffice', 'sotagent': 'SOTAgent', 'ai-daily-digest': 'SOTAgent',
     'claude-code-vis': 'SOTAgent', 'eternal': 'tqsdk', 'knowlever': 'KnowLever',
     'tailscale': 'SOTAgent', 'ollama': 'SOTAgent', 'llama': 'SOTAgent',
@@ -1838,7 +1838,7 @@ app.post('/api/funnel/reset', async (c) => {
 
 // ─── KnowLever 流水线 API ───────────────────────────────
 
-// ─── KnowLever 流水线 API (facade → 本地实现；PolarOps 已退役 2026-08-11) ────────
+// ─── KnowLever 流水线 API (facade → PolarOps) ────────
 startCacheRefresh('knowlever-status', async () => {
   const { getOverallStatus } = await import('./knowlever-monitor.js');
   return await getOverallStatus();
@@ -1991,7 +1991,7 @@ app.post('/api/knowlever/topics/:name/ingest', async (c) => {
   }
 });
 
-// ─── DiGist API (facade → 本地实现；PolarOps 已退役 2026-08-11) ────────────────
+// ─── DiGist API (facade → PolarOps) ────────────────
 startCacheRefresh('digist-status', async () => {
   const { getDigistStatus } = await import('./digist-monitor.js');
   return await getDigistStatus();

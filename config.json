@@ -25,7 +25,9 @@
     "ollama": 11434,
     "tqsdk_collector": 18900,
     "claude_code_viz": 19120,
-    "polar_process": 11055
+    "polar_process": 11055,
+    "polarops": 11065,
+    "polarui": 5170
   },
   "sentinel": {
     "poll_interval_sec": 30,

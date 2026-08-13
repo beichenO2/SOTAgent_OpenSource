@@ -30,16 +30,13 @@ export interface BridgeTarget {
   project: string;
   defaultPort: number;
   envVar: string;
-  /** Retired target: never proxy, go straight to the local fallback handler. */
-  retired?: boolean;
 }
 
 export const BRIDGE_TARGETS: Record<string, BridgeTarget> = {
   polarport:    { serviceName: 'polarport-api',  project: 'PolarPort',    defaultPort: 11050, envVar: 'POLARPORT_PORT' },
   polarprocess: { serviceName: 'polarprocess',   project: 'PolarProcess', defaultPort: 11055, envVar: 'POLARPROCESS_PORT' },
   polarsync:    { serviceName: 'polarsync',       project: 'PolarSync',    defaultPort: 11060, envVar: 'POLARSYNC_PORT' },
-  // PolarOps 已退役 2026-08-11（见根仓 ARCHIVED.md），直接走本地实现。
-  polarops:     { serviceName: 'polarops',        project: 'PolarOps',     defaultPort: 11065, envVar: 'POLAROPS_PORT', retired: true },
+  polarops:     { serviceName: 'polarops',        project: 'PolarOps',     defaultPort: 11065, envVar: 'POLAROPS_PORT' },
   hub:          { serviceName: 'polarcop-hub',    project: 'PolarCopilot', defaultPort: 8040,  envVar: 'HUB_PORT' },
 };
 
@@ -129,17 +126,6 @@ export async function bridgeCall(
   body?: unknown,
   headers?: Record<string, string>,
 ): Promise<ProxyResult> {
-  // Retired target: skip the network round-trip entirely so callers fall back
-  // to their local handler immediately instead of waiting out the proxy timeout.
-  if (target.retired) {
-    return {
-      ok: false,
-      status: 503,
-      body: { ok: false, message: `${target.project} retired; served locally` },
-      proxied: false,
-    };
-  }
-
   const port = await resolvePort(target, db);
   const result = await proxyRequest(port, method, path, body, headers);
 
@@ -156,7 +142,6 @@ export async function bridgeCall(
  * Check if a bridge target is alive.
  */
 export async function isTargetAlive(target: BridgeTarget, db: SOTAgentDB): Promise<boolean> {
-  if (target.retired) return false;
   const port = await resolvePort(target, db);
   try {
     const resp = await fetch(`http://127.0.0.1:${port}/api/health`, {

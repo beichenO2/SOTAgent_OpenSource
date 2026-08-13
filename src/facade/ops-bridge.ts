@@ -3,10 +3,6 @@
  *
  * Bridges: /api/checkup-events, /api/digist/*, /api/knowlever/*
  * Falls back to local SOTAgent monitor modules on failure.
- *
- * PolarOps 已退役 2026-08-11（见根仓 ARCHIVED.md）：其 BRIDGE_TARGETS 条目标记
- * retired，bridgeCall 直接返回 proxied=false，本文件的每个 handler 都走本地实现。
- * 保留桥接骨架是为了日后若重新引入外部监控服务可原地恢复。
  */
 
 import type { Context } from 'hono';
